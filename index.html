@@ -8582,16 +8582,27 @@ function renderScheduleReorder() {
     html += `<button onclick="window._scheduleViewYear=${y};renderSchedule();" style="border:none;border-radius:980px;padding:6px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;letter-spacing:-0.224px;background:${isActive?'#D20015':'transparent'};color:${isActive?'#fff':'#565A5B'};">${y}년</button>`;
   });
   html += '</div></div>';
-  html += '<button onclick="tryExitScheduleReorder()" class="pill-btn" style="background:#fff;color:#303A3C;border:1px solid #E5E7EB;flex-shrink:0;">← 일정 목록으로</button>';
+  html += '<div style="display:flex;gap:8px;flex-shrink:0;flex-wrap:wrap;">';
+  if (window._scheduleReorderDirty) {
+    html += '<button type="button" onclick="cancelScheduleReorderChanges()" class="pill-btn" style="background:#F3F4F6;color:#303A3C;border:1px solid #E5E7EB;">취소</button>';
+    html += '<button type="button" onclick="saveScheduleReorderChanges()" class="pill-btn pill-btn-primary">저장</button>';
+  } else {
+    html += '<button type="button" onclick="tryExitScheduleReorder()" class="pill-btn" style="background:#fff;color:#303A3C;border:1px solid #E5E7EB;">← 일정 목록으로</button>';
+  }
+  html += '</div>';
   html += '</div>';
 
   if (window._scheduleReorderDirty) {
-    html += '<div style="background:#FFF7E6;border:1px solid #FBD38D;border-radius:12px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:8px;">';
-    html += '<span style="font-size:13px;color:#8A5A00;font-weight:500;">● 저장되지 않은 변경이 있습니다. 하단의 "저장" 버튼을 눌러 변경사항을 확정하세요.</span>';
+    html += '<div style="background:#FFF7E6;border:1px solid #FBD38D;border-radius:12px;padding:12px 14px;margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">';
+    html += '<span style="font-size:13px;color:#8A5A00;font-weight:500;">● 저장되지 않은 변경이 있습니다. 우측 상단의 "저장" 버튼으로 확정하거나 "취소"로 되돌리세요.</span>';
+    html += '<div style="display:flex;gap:8px;">';
+    html += '<button type="button" onclick="cancelScheduleReorderChanges()" class="pill-btn" style="background:#fff;color:#303A3C;border:1px solid #E5E7EB;">취소</button>';
+    html += '<button type="button" onclick="saveScheduleReorderChanges()" class="pill-btn pill-btn-primary">저장</button>';
+    html += '</div>';
     html += '</div>';
   }
 
-  html += '<div style="padding-bottom:' + (window._scheduleReorderDirty ? '88px' : '0') + ';">';
+  html += '<div>';
   html += '<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">';
   for (let m = 1; m <= 12; m++) {
     const items = monthMap[m] || [];
@@ -8611,10 +8622,17 @@ function renderScheduleReorder() {
         const dotColor = isDivision ? '#6366F1' : isOutsourcing ? '#F59E0B' : '#22C55E';
         const dateStr = item.dateStart ? (item.dateEnd && item.dateEnd !== item.dateStart ? item.dateStart.substring(5) + ' ~ ' + item.dateEnd.substring(5) : item.dateStart.substring(5)) : '-';
         const name = item.displayName || item.station || '(이름 없음)';
-        html += `<div class="schedule-chip" data-id="${item.id}" style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,0.04);">`;
+        const snapItem = (window._scheduleReorderSnapshot || []).find(x => x.id === item.id);
+        const isMoved = snapItem && snapItem.month !== item.month;
+        const chipBorder = isMoved ? '2px solid #D20015' : '1px solid #E5E7EB';
+        const chipBg = isMoved ? '#FFF5F6' : '#fff';
+        html += `<div class="schedule-chip${isMoved ? ' schedule-chip-moved' : ''}" data-id="${item.id}" style="background:${chipBg};border:${chipBorder};border-radius:10px;padding:8px 10px;margin-bottom:6px;cursor:grab;box-shadow:0 1px 2px rgba(0,0,0,0.04);">`;
         html += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">`;
         html += `<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${dotColor};flex-shrink:0;"></span>`;
         html += `<span style="font-size:12.5px;font-weight:600;color:#303A3C;letter-spacing:-0.2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</span>`;
+        if (isMoved) {
+          html += `<span style="font-size:9.5px;font-weight:600;color:#fff;background:#D20015;padding:1px 6px;border-radius:980px;margin-left:auto;flex-shrink:0;">변경</span>`;
+        }
         html += `</div>`;
         html += `<div style="display:flex;align-items:center;justify-content:space-between;gap:6px;">`;
         html += `<span style="font-size:10.5px;color:#9EA2A1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${dateStr}</span>`;
@@ -8628,14 +8646,6 @@ function renderScheduleReorder() {
   }
   html += '</div>';
   html += '</div>';
-
-  if (window._scheduleReorderDirty) {
-    html += '<div id="scheduleReorderActionBar" style="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9999;background:rgba(255,255,255,0.96);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);border:1px solid rgba(0,0,0,0.08);border-radius:980px;padding:8px 10px;box-shadow:0 10px 30px rgba(0,0,0,0.15);display:flex;align-items:center;gap:8px;">';
-    html += '<span style="font-size:12.5px;color:#565A5B;padding:0 8px 0 12px;">변경사항 검토 후 저장</span>';
-    html += '<button onclick="cancelScheduleReorderChanges()" class="pill-btn" style="background:#F3F4F6;color:#303A3C;border:none;font-size:13px;">취소</button>';
-    html += '<button onclick="saveScheduleReorderChanges()" class="pill-btn pill-btn-primary" style="font-size:13px;">저장</button>';
-    html += '</div>';
-  }
 
   const container = document.getElementById('scheduleContainer');
   if (container) container.innerHTML = html;
