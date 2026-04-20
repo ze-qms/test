@@ -765,6 +765,7 @@ select.apple-input {
     <button onclick="switchTab(0)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-active" data-tab="0" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">홈</button>
     <button onclick="switchTab(1)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="1" data-tab-alt="2" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">점검</button>
     <button onclick="switchTab(3)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="3" data-tab-alt="4" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">인사이트</button>
+    <button onclick="switchTab(7)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="7" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">QPI</button>
     <button onclick="switchTab(5)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="5" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">일정</button>
     <button onclick="switchTab(6)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="6" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">관리</button>
   </div>
@@ -1171,6 +1172,81 @@ select.apple-input {
     <div id="scheduleContainer"></div>
   </div>
 
+  <!-- Tab 7: QPI (품질성과지표) — v19.7.0 -->
+  <div id="tab7" class="tab-content hidden fade-in">
+    <div class="mb-4 flex items-end justify-between flex-wrap gap-3">
+      <div>
+        <h2 class="section-title">QPI · 품질성과지표</h2>
+        <p class="section-subtitle mt-1">외부심사 지적건수 기반 관리 지표 (K-webopss 수동 입력)</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <label style="font-size:12px;color:#566062;">연도</label>
+        <select id="qpiYearSelect" class="apple-input" style="width:auto;font-size:14px;padding:6px 10px;" onchange="onQpiYearChange(this.value)">
+          <option value="2023">2023</option>
+          <option value="2024">2024</option>
+          <option value="2025">2025</option>
+          <option value="2026" selected>2026</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- 세그먼트 토글 -->
+    <div class="mb-5">
+      <div style="display:inline-flex;background:rgba(17,17,17,0.06);border-radius:980px;padding:3px;">
+        <button id="qpiSegBtnDashboard" onclick="switchQpiSegment('dashboard')" style="border:none;border-radius:980px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;background:#D20015;color:#fff;">대시보드</button>
+        <button id="qpiSegBtnDetail" onclick="switchQpiSegment('detail')" style="border:none;border-radius:980px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;background:transparent;color:#565A5B;">지표별</button>
+        <button id="qpiSegBtnAdmin" onclick="switchQpiSegment('admin')" style="border:none;border-radius:980px;padding:8px 20px;font-size:13px;font-weight:600;cursor:pointer;transition:all 0.2s;background:transparent;color:#565A5B;">관리</button>
+      </div>
+    </div>
+
+    <!-- 세그먼트 1: 대시보드 -->
+    <div id="qpiDashboardSegment">
+      <!-- 종합 요약 카드 -->
+      <div class="apple-card p-6 mb-5">
+        <div class="flex items-center justify-between flex-wrap gap-3 mb-4">
+          <div>
+            <h3 style="font-size:13px;font-weight:600;color:#6E7273;letter-spacing:0.5px;text-transform:uppercase;margin:0;">종합 QPI</h3>
+            <div style="display:flex;align-items:baseline;gap:12px;margin-top:6px;">
+              <span id="qpiTotalValue" style="font-size:40px;font-weight:700;color:#1a1c1d;letter-spacing:-0.5px;">-</span>
+              <span id="qpiTotalGrade" style="font-size:18px;font-weight:700;padding:4px 14px;border-radius:980px;">-</span>
+            </div>
+            <div id="qpiTotalDelta" style="font-size:13px;color:#9EA2A1;margin-top:4px;"></div>
+          </div>
+          <div style="min-width:200px;">
+            <div style="font-size:12px;color:#9EA2A1;margin-bottom:4px;">목표 (B등급)</div>
+            <div style="font-size:22px;font-weight:600;color:#303A3C;">4.209</div>
+            <div style="font-size:12px;color:#9EA2A1;margin-top:4px;">구간치: S≤2.805 · A≤3.741 · B≤4.209 · C≤4.677 · D≤5.613</div>
+          </div>
+        </div>
+        <div style="height:220px;"><canvas id="qpiTrendChart"></canvas></div>
+      </div>
+
+      <!-- 5개 지표 카드 -->
+      <div class="mb-3" style="font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;color:#6E7273;padding-left:4px;">5개 지표별 현황</div>
+      <div id="qpiIndicatorCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-5"></div>
+
+      <!-- 3개년 비교 -->
+      <div class="apple-card p-6">
+        <h3 style="font-size:17px;font-weight:600;color:#303A3C;margin-bottom:12px;">연도별 추이 (23~26)</h3>
+        <div style="height:260px;"><canvas id="qpiYearlyChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- 세그먼트 2: 지표별 -->
+    <div id="qpiDetailSegment" class="hidden">
+      <div class="mb-4">
+        <label class="apple-label">지표 선택</label>
+        <select id="qpiDetailSelect" class="apple-input" style="max-width:320px;" onchange="renderQpiDetail(this.value)"></select>
+      </div>
+      <div id="qpiDetailBody"></div>
+    </div>
+
+    <!-- 세그먼트 3: 관리 -->
+    <div id="qpiAdminSegment" class="hidden">
+      <div id="qpiAdminBody"></div>
+    </div>
+  </div>
+
   <!-- Tab 6: Data Management -->
   <div id="tab6" class="tab-content hidden fade-in">
     <div class="mb-6">
@@ -1379,7 +1455,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.6.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.7.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1391,7 +1467,7 @@ select.apple-input {
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="color:#566062;">빌드 날짜</span>
-          <span style="font-weight:500;color:#9EA2A1;">2026-04-16</span>
+          <span style="font-weight:500;color:#9EA2A1;">2026-04-17</span>
         </div>
       </div>
     </div>
@@ -1493,6 +1569,10 @@ select.apple-input {
     <svg class="w-5 h-5" style="color:#9EA2A1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
     <span style="font-size:11px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">인사이트</span>
   </button>
+  <button onclick="switchTab(7)" class="mobile-tab flex flex-col items-center justify-center py-1 px-2 min-w-0 flex-1" data-tab="7" style="background:none;border:none;cursor:pointer;min-height:44px;">
+    <svg class="w-5 h-5" style="color:#9EA2A1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke-width="2"/><circle cx="12" cy="12" r="5" stroke-width="2"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/></svg>
+    <span style="font-size:11px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">QPI</span>
+  </button>
   <button onclick="switchTab(5)" class="mobile-tab flex flex-col items-center justify-center py-1 px-2 min-w-0 flex-1" data-tab="5" style="background:none;border:none;cursor:pointer;min-height:44px;">
     <svg class="w-5 h-5" style="color:#9EA2A1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
     <span style="font-size:11px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">일정</span>
@@ -1512,7 +1592,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.6.0',
+  version: '19.7.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -2854,6 +2934,82 @@ function scheduleGoBack() {
 
 const CUSTOM_STATIONS_KEY = 'eastar_' + APP_ENV + '_custom_stations';
 const CAR_STORAGE_KEY = 'eastar_' + APP_ENV + '_car_data';
+const QPI_STORAGE_KEY = 'eastar_' + APP_ENV + '_qpi_data';
+
+// ============================================================================
+// QPI (품질성과지표) 상수 — v19.7.0
+// 출처: 2026년 개인KPI 문서 (품질자체지표)
+// 단위: 당해년도 개선조치 건수 ÷ 국내·국제 운항편수 평균 × 10,000 (낮을수록 우수)
+// Lagging 지표(외부심사 지적건수)는 K-webopss에서 수동 입력
+// ============================================================================
+const QPI_INDICATORS = [
+  {
+    id: 'irregular',
+    name: '비정상 상황 대응',
+    desc: '결항·지연·회항·비상 등 비정상 운항 상황 대응 절차',
+    targets2026: 0.474,
+    history: { 2023: 0, 2024: 1.497, 2025: 0 },
+    checklistItems: {
+      branch: ['1.4','1.5','1.6'],
+      pax:    ['1.5'],
+      ramp:   ['1.5'],
+    },
+  },
+  {
+    id: 'exitrow',
+    name: '비상구열 좌석 절차',
+    desc: '비상구열 좌석 배정·브리핑 절차',
+    targets2026: 1.111,
+    history: { 2023: 3.508, 2024: 0, 2025: 0 },
+    checklistItems: {
+      branch: ['4.7'],
+      pax:    ['4.7'],
+      ramp:   ['4.7'],
+    },
+  },
+  {
+    id: 'dangerous',
+    name: '위험물 관리',
+    desc: '위험물(DG) 교육·취급·안내 관리',
+    targets2026: 0.474,
+    history: { 2023: 0, 2024: 1.497, 2025: 0 },
+    checklistItems: {
+      branch: ['1.1','1.2'],
+      pax:    ['1.1','5.11'],
+      ramp:   ['6.3'],
+    },
+  },
+  {
+    id: 'handler',
+    name: '조업사 품질 평가',
+    desc: '외주 조업사(GHA) 품질 감독·평가',
+    targets2026: 0.555,
+    history: { 2023: 1.754, 2024: 0, 2025: 0 },
+    checklistItems: {
+      branch: ['3.2','3.3'],
+      pax:    ['3.2','3.3'],
+      ramp:   [],
+    },
+  },
+  {
+    id: 'manual',
+    name: '매뉴얼 관리',
+    desc: 'SOP·LERAP 등 매뉴얼 개정·배포·현행화',
+    targets2026: 1.595,
+    history: { 2023: 1.754, 2024: 1.497, 2025: 1.786 },
+    checklistItems: {
+      branch: ['1.4','1.7'],
+      pax:    ['1.4','1.6'],
+      ramp:   ['1.4','1.6'],
+    },
+  },
+];
+// 종합 등급 구간치 (5개 지표 합산 기준, 낮을수록 우수)
+const QPI_TOTAL_GRADES = { S: 2.805, A: 3.741, B: 4.209, C: 4.677, D: 5.613 };
+// 성숙도 점수(4점 만점) 플래그 임계값 — 가이드 생성용
+const QPI_MATURITY_THRESHOLDS = { safe: 3.5, warn: 2.5 };
+// 대상 연도
+let qpiCurrentYear = 2026;
 
 // Station Detail state
 let stationDetailPreviousTab = 0;
@@ -3315,6 +3471,8 @@ function onLoginSuccess() {
   if (scheduleData.length === 0) loadSchedule();
   // v19.1: CAR 데이터 Firebase 동기화
   loadCarDataFromFirebase();
+  // v19.7: QPI 데이터 Firebase 동기화
+  loadQpiDataFromFirebase();
   // 드롭다운은 항상 초기화
   populateStationDropdown();
   populateViewStationDropdown();
@@ -4081,6 +4239,7 @@ function switchTab(idx, _fromPopstate) {
   if (idx === 4) renderAnalysis();
   if (idx === 5) { schedulePhase = 1; currentScheduleId = null; renderSchedule(); } // reset without history push (switchTab already records)
   if (idx === 6) renderDataManagement();
+  if (idx === 7) { switchQpiSegment(qpiActiveSegment || 'dashboard'); }
   // v18.0.0: 세그먼트 업데이트
   updateCheckSegment(idx);
   updateInsightSegment(idx);
@@ -11863,6 +12022,556 @@ function renderSDCategoryTable(d) {
 }
 
 // ============================================================================
+// QPI (품질성과지표) — v19.7.0
+// 데이터: Firebase qpi/{year} + LocalStorage
+// 구조: { flightsAvg, indicators: { <id>: { monthly:[12], target } } }
+// ============================================================================
+let qpiActiveSegment = 'dashboard';
+let _qpiDataCache = null; // { year -> data }
+
+function _qpiDefaultData(year) {
+  const indicators = {};
+  QPI_INDICATORS.forEach(ind => {
+    indicators[ind.id] = {
+      monthly: new Array(12).fill(0),
+      target: ind.targets2026,
+    };
+  });
+  return { flightsAvg: 0, indicators };
+}
+
+function loadQpiData(year) {
+  const all = SafeStorage.get(QPI_STORAGE_KEY, {});
+  if (!all[year]) return _qpiDefaultData(year);
+  const base = _qpiDefaultData(year);
+  const saved = all[year];
+  base.flightsAvg = saved.flightsAvg || 0;
+  QPI_INDICATORS.forEach(ind => {
+    if (saved.indicators && saved.indicators[ind.id]) {
+      const s = saved.indicators[ind.id];
+      base.indicators[ind.id].monthly = Array.isArray(s.monthly) && s.monthly.length === 12 ? s.monthly.map(v => Number(v) || 0) : new Array(12).fill(0);
+      base.indicators[ind.id].target = Number(s.target) || ind.targets2026;
+    }
+  });
+  return base;
+}
+
+function saveQpiData(year, data) {
+  const all = SafeStorage.get(QPI_STORAGE_KEY, {});
+  all[year] = data;
+  SafeStorage.set(QPI_STORAGE_KEY, all);
+  if (firebaseDb) {
+    const ref = dbRef('qpi/' + year);
+    if (ref) {
+      ref.set(data).then(() => console.log('QPI saved to Firebase:', year))
+        .catch(e => console.warn('QPI Firebase save failed:', e));
+    }
+  }
+}
+
+function loadQpiDataFromFirebase() {
+  if (!firebaseDb) return Promise.resolve();
+  return dbRef('qpi').once('value').then(snap => {
+    const fbData = snap.val();
+    if (!fbData) return;
+    const local = SafeStorage.get(QPI_STORAGE_KEY, {});
+    let updated = false;
+    for (const [year, v] of Object.entries(fbData)) {
+      if (!local[year] || JSON.stringify(local[year]) !== JSON.stringify(v)) {
+        local[year] = v;
+        updated = true;
+      }
+    }
+    if (updated) SafeStorage.set(QPI_STORAGE_KEY, local);
+  }).catch(e => console.warn('QPI load from Firebase failed:', e));
+}
+
+// -- 계산 ----------------------------------------------------------------
+function calculateQpiIndicator(indicatorId, year) {
+  const data = loadQpiData(year);
+  const ind = data.indicators[indicatorId];
+  if (!ind) return { sum: 0, rate: 0, target: 0 };
+  const sum = ind.monthly.reduce((a, b) => a + (Number(b) || 0), 0);
+  const flights = Number(data.flightsAvg) || 0;
+  const rate = flights > 0 ? (sum / flights) * 10000 : 0;
+  return { sum, rate, target: Number(ind.target) || 0, flightsAvg: flights };
+}
+
+function calculateQpiTotal(year) {
+  let total = 0;
+  QPI_INDICATORS.forEach(ind => {
+    total += calculateQpiIndicator(ind.id, year).rate;
+  });
+  return total;
+}
+
+function getQpiGrade(total) {
+  if (!(total > 0)) return { grade: '-', color: '#9EA2A1', bg: 'rgba(158,162,161,0.15)' };
+  if (total <= QPI_TOTAL_GRADES.S) return { grade: 'S', color: '#22C55E', bg: 'rgba(34,197,94,0.15)' };
+  if (total <= QPI_TOTAL_GRADES.A) return { grade: 'A', color: '#16A34A', bg: 'rgba(22,163,74,0.15)' };
+  if (total <= QPI_TOTAL_GRADES.B) return { grade: 'B', color: '#3B82F6', bg: 'rgba(59,130,246,0.15)' };
+  if (total <= QPI_TOTAL_GRADES.C) return { grade: 'C', color: '#F59E0B', bg: 'rgba(245,158,11,0.15)' };
+  if (total <= QPI_TOTAL_GRADES.D) return { grade: 'D', color: '#EF4444', bg: 'rgba(239,68,68,0.15)' };
+  return { grade: 'D-', color: '#D20015', bg: 'rgba(210,0,21,0.15)' };
+}
+
+function getQpiStatusColor(rate, target) {
+  if (!(target > 0)) return '#9EA2A1';
+  if (rate <= target) return '#22C55E';
+  if (rate <= target * 1.15) return '#F59E0B';
+  return '#D20015';
+}
+
+// 내부심사 성숙도 — 매핑된 점검 항목 평균(가이드용)
+function calculateQpiMaturity(indicatorId, year) {
+  const ind = QPI_INDICATORS.find(x => x.id === indicatorId);
+  if (!ind) return { overall: 0, perType: {}, itemScores: [], stdev: 0 };
+  const typeMap = { branch: CHECKLIST_BRANCH, pax: CHECKLIST_PAX, ramp: CHECKLIST_RAMP };
+  const records = (allData || []).filter(d => String(d.year) === String(year) && typeMap[d.type]);
+  const perType = {};
+  const itemScores = []; // { type, id, text, values:[] }
+  ['branch','pax','ramp'].forEach(tp => {
+    const ids = ind.checklistItems[tp] || [];
+    if (!ids.length) return;
+    const typeRecords = records.filter(r => r.type === tp);
+    ids.forEach(itemId => {
+      const values = [];
+      typeRecords.forEach(rec => {
+        const s = rec.scores && rec.scores[itemId];
+        if (s !== undefined && s !== null && s !== 'N/A') {
+          const n = Number(s);
+          if (!isNaN(n)) values.push(n);
+        }
+      });
+      const text = _qpiLookupItemText(tp, itemId);
+      itemScores.push({ type: tp, id: itemId, text, values, avg: values.length ? values.reduce((a,b)=>a+b,0)/values.length : null });
+    });
+    const vals = itemScores.filter(x => x.type === tp && x.avg !== null).map(x => x.avg);
+    perType[tp] = vals.length ? vals.reduce((a,b)=>a+b,0) / vals.length : null;
+  });
+  const allVals = itemScores.filter(x => x.avg !== null).map(x => x.avg);
+  const overall = allVals.length ? allVals.reduce((a,b)=>a+b,0) / allVals.length : 0;
+  const mean = overall;
+  const stdev = allVals.length > 1 ? Math.sqrt(allVals.reduce((a,b)=>a+Math.pow(b-mean,2),0)/allVals.length) : 0;
+  return { overall, perType, itemScores, stdev, sampleCount: allVals.length };
+}
+
+function _qpiLookupItemText(type, itemId) {
+  const typeMap = { branch: CHECKLIST_BRANCH, pax: CHECKLIST_PAX, ramp: CHECKLIST_RAMP };
+  const cl = typeMap[type];
+  if (!cl) return '';
+  for (const cat of Object.values(cl)) {
+    for (const item of (cat.items || [])) {
+      if (String(item.id) === String(itemId)) return item.text || '';
+    }
+  }
+  return '';
+}
+
+function buildAuditGuidance(indicatorId, year) {
+  const ind = QPI_INDICATORS.find(x => x.id === indicatorId);
+  if (!ind) return [];
+  const m = calculateQpiMaturity(indicatorId, year);
+  const tips = [];
+  const red = m.itemScores.filter(x => x.avg !== null && x.avg < QPI_MATURITY_THRESHOLDS.warn);
+  const yellow = m.itemScores.filter(x => x.avg !== null && x.avg >= QPI_MATURITY_THRESHOLDS.warn && x.avg < QPI_MATURITY_THRESHOLDS.safe);
+  red.forEach(x => {
+    const tpLabel = x.type === 'branch' ? '지점' : x.type === 'pax' ? '여객' : '램프';
+    tips.push({
+      level: 'red',
+      text: `🔴 [${tpLabel} ${x.id}] 평균 ${x.avg.toFixed(2)}점 — 즉시 개선 및 사전 컨설팅 필요. 다음 심사 전까지 집중 관리.`,
+      detail: x.text,
+    });
+  });
+  yellow.forEach(x => {
+    const tpLabel = x.type === 'branch' ? '지점' : x.type === 'pax' ? '여객' : '램프';
+    tips.push({
+      level: 'yellow',
+      text: `🟡 [${tpLabel} ${x.id}] 평균 ${x.avg.toFixed(2)}점 — 다음 심사 시 이행 증빙 중점 확인 권고.`,
+      detail: x.text,
+    });
+  });
+  if (m.stdev > 0.7 && m.sampleCount > 1) {
+    tips.push({ level: 'info', text: `⚠ 지점 간 편차 큼 (표준편차 ${m.stdev.toFixed(2)}) — 표준화·공유 절차 재점검 필요.` });
+  }
+  if (!red.length && !yellow.length && m.sampleCount > 0) {
+    tips.push({ level: 'green', text: `🟢 관련 점검 항목 평균 ${m.overall.toFixed(2)}점 — 관리 수준 유지. 정기 모니터링 지속.` });
+  }
+  if (!m.sampleCount) {
+    tips.push({ level: 'info', text: 'ℹ 매핑된 내부점검 데이터가 아직 없습니다. 점검 입력 후 가이드가 자동 생성됩니다.' });
+  }
+  return tips;
+}
+
+// -- UI: 세그먼트 전환 ---------------------------------------------------
+function switchQpiSegment(seg) {
+  qpiActiveSegment = seg;
+  const segs = { dashboard: 'qpiDashboardSegment', detail: 'qpiDetailSegment', admin: 'qpiAdminSegment' };
+  Object.entries(segs).forEach(([k, id]) => {
+    const el = document.getElementById(id);
+    if (el) el.classList.toggle('hidden', k !== seg);
+    const btn = document.getElementById('qpiSegBtn' + k.charAt(0).toUpperCase() + k.slice(1));
+    if (btn) {
+      btn.style.background = (k === seg) ? '#D20015' : 'transparent';
+      btn.style.color = (k === seg) ? '#fff' : '#565A5B';
+    }
+  });
+  if (seg === 'dashboard') renderQpiDashboard();
+  else if (seg === 'detail') {
+    _qpiPopulateDetailSelect();
+    const sel = document.getElementById('qpiDetailSelect');
+    const first = sel && sel.value ? sel.value : QPI_INDICATORS[0].id;
+    if (sel && !sel.value) sel.value = first;
+    renderQpiDetail(first);
+  } else if (seg === 'admin') {
+    renderQpiAdmin();
+  }
+}
+
+function onQpiYearChange(val) {
+  qpiCurrentYear = Number(val) || 2026;
+  if (qpiActiveSegment === 'dashboard') renderQpiDashboard();
+  else if (qpiActiveSegment === 'detail') {
+    const sel = document.getElementById('qpiDetailSelect');
+    renderQpiDetail(sel && sel.value || QPI_INDICATORS[0].id);
+  } else if (qpiActiveSegment === 'admin') renderQpiAdmin();
+}
+
+function _qpiPopulateDetailSelect() {
+  const sel = document.getElementById('qpiDetailSelect');
+  if (!sel) return;
+  if (sel.options.length === QPI_INDICATORS.length) return;
+  sel.innerHTML = '';
+  QPI_INDICATORS.forEach(ind => {
+    const opt = document.createElement('option');
+    opt.value = ind.id;
+    opt.textContent = ind.name;
+    sel.appendChild(opt);
+  });
+}
+
+// -- 렌더: 대시보드 -------------------------------------------------------
+function renderQpiDashboard() {
+  const year = qpiCurrentYear;
+  // 종합
+  const total = calculateQpiTotal(year);
+  const grade = getQpiGrade(total);
+  const el = (id) => document.getElementById(id);
+  const totalValueEl = el('qpiTotalValue');
+  const totalGradeEl = el('qpiTotalGrade');
+  if (totalValueEl) totalValueEl.textContent = total > 0 ? total.toFixed(3) : '-';
+  if (totalGradeEl) {
+    totalGradeEl.textContent = grade.grade;
+    totalGradeEl.style.background = grade.bg;
+    totalGradeEl.style.color = grade.color;
+  }
+  // 전년 대비
+  const prevTotal = calculateQpiTotal(year - 1);
+  const deltaEl = el('qpiTotalDelta');
+  if (deltaEl) {
+    if (prevTotal > 0 && total > 0) {
+      const d = ((total - prevTotal) / prevTotal) * 100;
+      const arrow = d < 0 ? '▼' : d > 0 ? '▲' : '→';
+      const color = d < 0 ? '#22C55E' : d > 0 ? '#D20015' : '#9EA2A1';
+      deltaEl.innerHTML = `전년 대비 <span style="color:${color};font-weight:600;">${arrow} ${Math.abs(d).toFixed(1)}%</span> (${prevTotal.toFixed(3)} → ${total.toFixed(3)})`;
+    } else {
+      deltaEl.textContent = '전년 데이터 없음';
+    }
+  }
+
+  // 5개 지표 카드
+  const cards = el('qpiIndicatorCards');
+  if (cards) {
+    cards.innerHTML = QPI_INDICATORS.map(ind => {
+      const r = calculateQpiIndicator(ind.id, year);
+      const color = getQpiStatusColor(r.rate, r.target);
+      const ratio = r.target > 0 ? (r.rate / r.target * 100) : 0;
+      const hist = ind.history || {};
+      const prev = (hist[year - 1] !== undefined) ? hist[year - 1] : calculateQpiIndicator(ind.id, year - 1).rate;
+      const d = prev > 0 ? ((r.rate - prev) / prev * 100) : null;
+      const arrow = d === null ? '' : (d < 0 ? '▼' : d > 0 ? '▲' : '→');
+      const arrowColor = d === null ? '#9EA2A1' : (d < 0 ? '#22C55E' : d > 0 ? '#D20015' : '#9EA2A1');
+      return `
+      <div class="apple-card p-5" style="border-left:4px solid ${color};">
+        <div style="font-size:12px;font-weight:600;letter-spacing:0.3px;color:#6E7273;text-transform:uppercase;">${ind.name}</div>
+        <div style="display:flex;align-items:baseline;gap:10px;margin-top:6px;">
+          <span style="font-size:28px;font-weight:700;color:#1a1c1d;letter-spacing:-0.3px;">${r.rate > 0 ? r.rate.toFixed(3) : '-'}</span>
+          <span style="font-size:12px;color:#9EA2A1;">/ 목표 ${r.target.toFixed(3)}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:12px;">
+          <span style="color:#566062;">연간 ${r.sum}건 · 편수 ${r.flightsAvg ? r.flightsAvg.toLocaleString() : '미입력'}</span>
+          <span style="color:${arrowColor};font-weight:600;">${arrow}${d !== null ? ' ' + Math.abs(d).toFixed(1) + '%' : ''}</span>
+        </div>
+        <div style="margin-top:10px;height:6px;background:rgba(192,206,209,0.3);border-radius:3px;overflow:hidden;">
+          <div style="height:100%;width:${Math.min(ratio, 150)}%;background:${color};"></div>
+        </div>
+        <div style="font-size:11px;color:#9EA2A1;margin-top:6px;">목표 대비 ${ratio > 0 ? ratio.toFixed(0) + '%' : '-'}</div>
+      </div>`;
+    }).join('');
+  }
+
+  // 월별 누적 추세 (라인)
+  const data = loadQpiData(year);
+  const flights = Number(data.flightsAvg) || 0;
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const palette = ['#D20015','#F59E0B','#22C55E','#3B82F6','#8B5CF6'];
+  const datasets = QPI_INDICATORS.map((ind, i) => {
+    const m = data.indicators[ind.id].monthly;
+    let cum = 0;
+    const cumArr = m.map(v => { cum += Number(v)||0; return flights > 0 ? (cum / flights) * 10000 : 0; });
+    return { label: ind.name, data: cumArr, borderColor: palette[i], backgroundColor: palette[i]+'22', tension:0.3, fill:false, pointRadius:2 };
+  });
+  ChartUtil.create('qpiTrendChart', {
+    type: 'line',
+    data: { labels: months, datasets },
+    options: ChartUtil.baseOptions({
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } },
+        tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(3) } } },
+      scales: { y: { beginAtZero: true, ticks:{font:{size:10}} }, x: { ticks:{font:{size:10}} } }
+    })
+  });
+
+  // 연도별 추이 (23~26) — 지표별 막대 그룹
+  const years = [2023, 2024, 2025, 2026];
+  const yearDatasets = QPI_INDICATORS.map((ind, i) => ({
+    label: ind.name,
+    backgroundColor: palette[i],
+    data: years.map(y => {
+      if (y === year) return calculateQpiIndicator(ind.id, y).rate;
+      const r = calculateQpiIndicator(ind.id, y).rate;
+      if (r > 0) return r;
+      return (ind.history && ind.history[y] !== undefined) ? ind.history[y] : 0;
+    }),
+  }));
+  ChartUtil.create('qpiYearlyChart', {
+    type: 'bar',
+    data: { labels: years.map(y=>y+'년'), datasets: yearDatasets },
+    options: ChartUtil.baseOptions({
+      plugins: { legend: { position:'bottom', labels:{ font:{size:10} } },
+        tooltip: { callbacks: { label: c => c.dataset.label + ': ' + c.parsed.y.toFixed(3) } } },
+      scales: { y:{ beginAtZero:true, stacked:false, ticks:{font:{size:10}} }, x:{ stacked:false, ticks:{font:{size:10}} } }
+    })
+  });
+}
+
+// -- 렌더: 지표별 드릴다운 -----------------------------------------------
+function renderQpiDetail(indicatorId) {
+  const ind = QPI_INDICATORS.find(x => x.id === indicatorId);
+  if (!ind) return;
+  const year = qpiCurrentYear;
+  const data = loadQpiData(year);
+  const monthly = data.indicators[ind.id].monthly;
+  const r = calculateQpiIndicator(ind.id, year);
+  const prevRate = (ind.history && ind.history[year - 1] !== undefined) ? ind.history[year - 1] : calculateQpiIndicator(ind.id, year - 1).rate;
+  const maturity = calculateQpiMaturity(ind.id, year);
+  const tips = buildAuditGuidance(ind.id, year);
+  const canEdit = currentUser && currentUser.role === 'admin';
+  const color = getQpiStatusColor(r.rate, r.target);
+  const months = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+  const monthlyInputs = monthly.map((v, i) => {
+    return `<td style="padding:6px 4px;text-align:center;"><input type="number" min="0" step="1" class="apple-input" style="width:52px;padding:4px;text-align:center;font-size:13px;" value="${v || 0}" data-qpi-month="${i}" ${canEdit ? '' : 'disabled'}></td>`;
+  }).join('');
+
+  const itemRows = maturity.itemScores.map(x => {
+    const tpLabel = x.type === 'branch' ? '지점' : x.type === 'pax' ? '여객' : '램프';
+    const avgText = x.avg === null ? '-' : x.avg.toFixed(2);
+    const avgColor = x.avg === null ? '#9EA2A1' : (x.avg < 2.5 ? '#D20015' : x.avg < 3.5 ? '#F59E0B' : '#22C55E');
+    return `<tr style="border-bottom:1px solid rgba(192,206,209,0.25);">
+      <td style="padding:8px 6px;font-size:12px;color:#566062;">${tpLabel}</td>
+      <td style="padding:8px 6px;font-size:13px;font-weight:600;color:#303A3C;">${x.id}</td>
+      <td style="padding:8px 6px;font-size:12px;color:#566062;max-width:380px;">${x.text || '-'}</td>
+      <td style="padding:8px 6px;text-align:right;font-weight:700;color:${avgColor};">${avgText}</td>
+      <td style="padding:8px 6px;text-align:right;font-size:11px;color:#9EA2A1;">n=${x.values.length}</td>
+    </tr>`;
+  }).join('');
+
+  const tipsHtml = tips.length ? tips.map(t => {
+    const bg = t.level === 'red' ? 'rgba(210,0,21,0.08)' : t.level === 'yellow' ? 'rgba(245,158,11,0.08)' : t.level === 'green' ? 'rgba(34,197,94,0.08)' : 'rgba(158,162,161,0.08)';
+    const bd = t.level === 'red' ? '#D20015' : t.level === 'yellow' ? '#F59E0B' : t.level === 'green' ? '#22C55E' : '#9EA2A1';
+    return `<div style="background:${bg};border-left:3px solid ${bd};padding:10px 12px;border-radius:6px;margin-bottom:8px;">
+      <div style="font-size:13px;color:#303A3C;font-weight:500;">${t.text}</div>
+      ${t.detail ? `<div style="font-size:11px;color:#9EA2A1;margin-top:4px;">${t.detail}</div>` : ''}
+    </div>`;
+  }).join('') : '<div style="color:#9EA2A1;font-size:13px;">가이드 없음</div>';
+
+  const prevArrow = prevRate > 0 && r.rate > 0 ? (r.rate < prevRate ? '▼' : r.rate > prevRate ? '▲' : '→') : '';
+  const prevColor = prevRate > 0 && r.rate > 0 ? (r.rate < prevRate ? '#22C55E' : r.rate > prevRate ? '#D20015' : '#9EA2A1') : '#9EA2A1';
+  const prevPct = prevRate > 0 && r.rate > 0 ? ((r.rate - prevRate) / prevRate * 100) : null;
+
+  const body = document.getElementById('qpiDetailBody');
+  if (!body) return;
+  body.innerHTML = `
+    <div class="apple-card p-5 mb-5">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+        <div>
+          <h3 style="font-size:18px;font-weight:700;color:#303A3C;margin:0;">${ind.name}</h3>
+          <p style="font-size:12px;color:#9EA2A1;margin-top:4px;">${ind.desc}</p>
+        </div>
+        <div style="text-align:right;">
+          <div style="font-size:28px;font-weight:700;color:${color};letter-spacing:-0.3px;">${r.rate > 0 ? r.rate.toFixed(3) : '-'}</div>
+          <div style="font-size:12px;color:#9EA2A1;">목표 ${r.target.toFixed(3)} · ${r.target > 0 ? (r.rate/r.target*100).toFixed(0) : '-'}%</div>
+          ${prevPct !== null ? `<div style="font-size:12px;color:${prevColor};font-weight:600;margin-top:2px;">전년 대비 ${prevArrow} ${Math.abs(prevPct).toFixed(1)}%</div>` : ''}
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div class="apple-card p-5">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <h4 style="font-size:14px;font-weight:700;color:#303A3C;margin:0;">월별 발생 건수</h4>
+          ${canEdit ? `<button onclick="saveQpiMonthly('${ind.id}')" class="pill-btn" style="background:#D20015;color:#fff;padding:6px 14px;font-size:12px;">저장</button>` : '<span style="font-size:11px;color:#9EA2A1;">읽기 전용</span>'}
+        </div>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;font-size:12px;">
+            <thead><tr style="border-bottom:1px solid rgba(192,206,209,0.5);">
+              ${months.map(m => `<th style="padding:6px 4px;color:#566062;font-weight:500;">${m}</th>`).join('')}
+            </tr></thead>
+            <tbody><tr>${monthlyInputs}</tr></tbody>
+          </table>
+        </div>
+        <div style="margin-top:12px;display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid rgba(192,206,209,0.3);">
+          <span style="font-size:12px;color:#566062;">연간 합계: <strong style="color:#303A3C;">${r.sum}건</strong></span>
+          <span style="font-size:12px;color:#566062;">운항편수 평균: <strong style="color:#303A3C;">${r.flightsAvg ? r.flightsAvg.toLocaleString() : '미입력 (관리 탭)'}</strong></span>
+        </div>
+        <div style="margin-top:10px;height:160px;"><canvas id="qpiDetailMonthChart"></canvas></div>
+      </div>
+
+      <div class="apple-card p-5">
+        <h4 style="font-size:14px;font-weight:700;color:#303A3C;margin:0 0 10px 0;">관련 내부점검 항목 성숙도</h4>
+        <p style="font-size:11px;color:#9EA2A1;margin:0 0 10px 0;">이 QPI 지표 개선에 영향을 줄 수 있는 점검 항목의 평균(연도: ${year}) · 4점 만점</p>
+        <div style="overflow-x:auto;">
+          <table style="width:100%;font-size:12px;border-collapse:collapse;">
+            <thead><tr style="border-bottom:1px solid rgba(192,206,209,0.5);text-align:left;">
+              <th style="padding:8px 6px;color:#566062;font-weight:500;">구분</th>
+              <th style="padding:8px 6px;color:#566062;font-weight:500;">항목</th>
+              <th style="padding:8px 6px;color:#566062;font-weight:500;">문구</th>
+              <th style="padding:8px 6px;color:#566062;font-weight:500;text-align:right;">평균</th>
+              <th style="padding:8px 6px;color:#566062;font-weight:500;text-align:right;">표본</th>
+            </tr></thead>
+            <tbody>${itemRows || '<tr><td colspan="5" style="padding:12px;color:#9EA2A1;text-align:center;">매핑된 항목 없음</td></tr>'}</tbody>
+          </table>
+        </div>
+        <div style="margin-top:10px;font-size:12px;color:#566062;padding-top:10px;border-top:1px solid rgba(192,206,209,0.3);">
+          전체 평균 <strong style="color:#303A3C;">${maturity.overall ? maturity.overall.toFixed(2) : '-'}</strong> · 표준편차 ${maturity.stdev.toFixed(2)} · 표본 ${maturity.sampleCount}
+        </div>
+      </div>
+    </div>
+
+    <div class="apple-card p-5 mt-5">
+      <h4 style="font-size:14px;font-weight:700;color:#303A3C;margin:0 0 12px 0;">심사 방향 가이드</h4>
+      ${tipsHtml}
+      <div style="font-size:11px;color:#9EA2A1;margin-top:10px;border-top:1px solid rgba(192,206,209,0.3);padding-top:10px;">
+        * 성숙도 4점: 초과이행 · 3점: 이행 · 2점: 부분이행 · 1점: 미이행. 임계: 🔴 &lt; 2.5, 🟡 &lt; 3.5, 🟢 ≥ 3.5
+      </div>
+    </div>
+  `;
+
+  // 월별 막대 차트
+  ChartUtil.create('qpiDetailMonthChart', {
+    type: 'bar',
+    data: { labels: months, datasets: [{ label: '건수', data: monthly.map(v => Number(v)||0), backgroundColor: color + 'cc' }] },
+    options: ChartUtil.baseOptions({ plugins: { legend: { display: false } }, scales: { y:{ beginAtZero:true, ticks:{ stepSize:1, font:{size:10} } }, x:{ ticks:{font:{size:10}} } } })
+  });
+}
+
+function saveQpiMonthly(indicatorId) {
+  if (!(currentUser && currentUser.role === 'admin')) { showToast('관리자 권한이 필요합니다.', 'error'); return; }
+  const year = qpiCurrentYear;
+  const data = loadQpiData(year);
+  const inputs = document.querySelectorAll('#qpiDetailBody input[data-qpi-month]');
+  const monthly = new Array(12).fill(0);
+  inputs.forEach(inp => {
+    const idx = Number(inp.dataset.qpiMonth);
+    monthly[idx] = Math.max(0, Number(inp.value) || 0);
+  });
+  data.indicators[indicatorId].monthly = monthly;
+  saveQpiData(year, data);
+  showToast('월별 건수 저장 완료', 'success');
+  renderQpiDetail(indicatorId);
+}
+
+// -- 렌더: 관리 ----------------------------------------------------------
+function renderQpiAdmin() {
+  const year = qpiCurrentYear;
+  const data = loadQpiData(year);
+  const canEdit = currentUser && currentUser.role === 'admin';
+  const body = document.getElementById('qpiAdminBody');
+  if (!body) return;
+
+  const targetRows = QPI_INDICATORS.map(ind => {
+    const cur = data.indicators[ind.id].target || ind.targets2026;
+    return `<tr style="border-bottom:1px solid rgba(192,206,209,0.25);">
+      <td style="padding:8px 6px;font-size:13px;color:#303A3C;">${ind.name}</td>
+      <td style="padding:8px 6px;text-align:right;"><input type="number" step="0.001" min="0" class="apple-input" style="width:100px;text-align:right;padding:5px;" value="${cur}" data-qpi-target="${ind.id}" ${canEdit ? '' : 'disabled'}></td>
+      <td style="padding:8px 6px;text-align:right;font-size:11px;color:#9EA2A1;">KPI: ${ind.targets2026}</td>
+    </tr>`;
+  }).join('');
+
+  body.innerHTML = `
+    <div class="apple-card p-6 mb-5">
+      <h3 style="font-size:17px;font-weight:600;color:#303A3C;margin:0 0 12px 0;">${year}년 운항편수</h3>
+      <p style="font-size:12px;color:#9EA2A1;margin-bottom:12px;">국내·국제 평균 편수 (QPI 계산식 분모). 연간 1값으로 입력.</p>
+      <div class="flex items-center gap-3 flex-wrap">
+        <input type="number" min="0" step="1" class="apple-input" id="qpiFlightsInput" style="width:180px;" value="${data.flightsAvg || 0}" ${canEdit ? '' : 'disabled'} placeholder="예: 28500">
+        <span style="font-size:13px;color:#566062;">편</span>
+        ${canEdit ? `<button onclick="saveQpiFlights()" class="pill-btn" style="background:#D20015;color:#fff;padding:6px 16px;font-size:13px;">저장</button>` : '<span style="font-size:11px;color:#9EA2A1;">읽기 전용</span>'}
+      </div>
+    </div>
+
+    <div class="apple-card p-6 mb-5">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3 style="font-size:17px;font-weight:600;color:#303A3C;margin:0;">지표별 목표 (편수당 건수 환산)</h3>
+        ${canEdit ? `<button onclick="saveQpiTargets()" class="pill-btn" style="background:#D20015;color:#fff;padding:6px 16px;font-size:13px;">저장</button>` : ''}
+      </div>
+      <table style="width:100%;font-size:13px;border-collapse:collapse;">
+        <thead><tr style="border-bottom:1px solid rgba(192,206,209,0.5);text-align:left;">
+          <th style="padding:8px 6px;color:#566062;font-weight:500;">지표</th>
+          <th style="padding:8px 6px;color:#566062;font-weight:500;text-align:right;">목표(B등급)</th>
+          <th style="padding:8px 6px;color:#566062;font-weight:500;text-align:right;">KPI 기본</th>
+        </tr></thead>
+        <tbody>${targetRows}</tbody>
+      </table>
+      <div style="margin-top:12px;font-size:12px;color:#566062;padding-top:10px;border-top:1px solid rgba(192,206,209,0.3);">
+        <strong style="color:#303A3C;">종합 등급 구간치</strong> · S ≤ ${QPI_TOTAL_GRADES.S} · A ≤ ${QPI_TOTAL_GRADES.A} · B ≤ ${QPI_TOTAL_GRADES.B} · C ≤ ${QPI_TOTAL_GRADES.C} · D ≤ ${QPI_TOTAL_GRADES.D}
+      </div>
+    </div>
+
+    <div class="apple-card p-6">
+      <h3 style="font-size:17px;font-weight:600;color:#303A3C;margin:0 0 12px 0;">출처·운영</h3>
+      <ul style="font-size:13px;color:#566062;line-height:1.7;padding-left:18px;margin:0;">
+        <li>23~25년 실적: 국토부 K-webopss 외부심사 지적사항 집계</li>
+        <li>26년 이후: K-webopss에서 심사 발생 시 확인 후 본 탭 '지표별'에서 월별 수동 입력</li>
+        <li>내부심사 성숙도: QPI 지표 개선에 영향을 줄 수 있는 점검 항목 평균 (가이드용)</li>
+        <li>등급: 종합 수치가 낮을수록 우수 (S &gt; A &gt; B &gt; C &gt; D)</li>
+      </ul>
+    </div>
+  `;
+}
+
+function saveQpiFlights() {
+  if (!(currentUser && currentUser.role === 'admin')) { showToast('관리자 권한이 필요합니다.', 'error'); return; }
+  const year = qpiCurrentYear;
+  const data = loadQpiData(year);
+  const v = Math.max(0, Number(document.getElementById('qpiFlightsInput').value) || 0);
+  data.flightsAvg = v;
+  saveQpiData(year, data);
+  showToast('운항편수 저장 완료', 'success');
+}
+
+function saveQpiTargets() {
+  if (!(currentUser && currentUser.role === 'admin')) { showToast('관리자 권한이 필요합니다.', 'error'); return; }
+  const year = qpiCurrentYear;
+  const data = loadQpiData(year);
+  document.querySelectorAll('#qpiAdminBody input[data-qpi-target]').forEach(inp => {
+    const id = inp.dataset.qpiTarget;
+    if (data.indicators[id]) data.indicators[id].target = Math.max(0, Number(inp.value) || 0);
+  });
+  saveQpiData(year, data);
+  showToast('목표치 저장 완료', 'success');
+}
+
+// ============================================================================
 // PUBLIC API - onclick 핸들러에서 접근 가능한 함수 노출
 // ============================================================================
 Object.assign(window, {
@@ -11925,6 +12634,9 @@ Object.assign(window, {
   renderOutsourcingStats, renderAuditorStats, renderOutsourcingAnalysis, toggleSection,
   // Utility exposed
   Scoring, ChartUtil, SafeStorage, CONFIG,
+  // QPI tab
+  switchQpiSegment, onQpiYearChange, renderQpiDashboard, renderQpiDetail, renderQpiAdmin,
+  saveQpiMonthly, saveQpiFlights, saveQpiTargets, loadQpiDataFromFirebase,
 });
 
 })(); // end IIFE
