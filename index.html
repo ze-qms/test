@@ -22,8 +22,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -11190,9 +11190,27 @@ function buildExportHTML() {
 
   const clone = root.cloneNode(true);
 
-  // 인터랙티브·UI-only 제거
-  const removeSel = ['#sdDownloadMenu', '#sdCarEditBtn', 'button', 'svg'];
+  // 1) 인터랙티브·편집 모드·UI-only 요소 제거 (id·class 기반 — 정리 단계 전에 먼저 제거)
+  const removeSel = [
+    '#sdDownloadMenu', '#sdCarEditBtn', '#sdCarEditArea',
+    'button', 'svg', 'input', 'select', 'textarea', 'form',
+    '.hidden', '[hidden]'
+  ];
   removeSel.forEach(sel => clone.querySelectorAll(sel).forEach(el => el.remove()));
+
+  // 2) inline style display:none 인 요소도 제거 (원본 DOM 기준 가시성 판단)
+  const checkHidden = (origNode) => {
+    if (!origNode || !origNode.getBoundingClientRect) return false;
+    const style = origNode.style;
+    if (style && (style.display === 'none' || style.visibility === 'hidden')) return true;
+    return false;
+  };
+  // 클론 노드와 원본 노드를 매핑하기 위해 동일 selector로 순회
+  // (간단히 — 클론 트리 직접 inline style 검사)
+  clone.querySelectorAll('*').forEach(el => {
+    const s = el.getAttribute('style') || '';
+    if (/display\s*:\s*none/i.test(s) || /visibility\s*:\s*hidden/i.test(s)) el.remove();
+  });
 
   // canvas → img 치환 (id 기반)
   clone.querySelectorAll('canvas').forEach(c => {
