@@ -22,6 +22,8 @@
 <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
@@ -650,6 +652,23 @@ select.apple-input {
 .combobox-option:hover, .combobox-option.hl { background:rgba(210,0,21,0.08); }
 .combobox-option.selected { color:#D20015;font-weight:600; }
 .combobox-empty { padding:12px;text-align:center;font-size:13px;color:#6E7273; }
+/* 상세 페이지 다운로드 메뉴 */
+.sd-download-menu .sd-download-list {
+  position:absolute; top:calc(100% + 6px); right:0; min-width:240px;
+  background:#fff; border:1px solid #E5E7EB; border-radius:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,0.10);
+  padding:6px; display:none; z-index:50;
+}
+.sd-download-menu.open .sd-download-list,
+.sd-download-menu:hover .sd-download-list { display:block; }
+.sd-download-item {
+  display:block; width:100%; text-align:left;
+  padding:9px 12px; font-size:13px; color:#303A3C;
+  background:none; border:none; border-radius:8px; cursor:pointer;
+  transition:background 0.1s;
+}
+.sd-download-item:hover { background:rgba(210,0,21,0.08); color:#D20015; }
+.sd-download-item:disabled { color:#C0CED1; cursor:wait; }
 </style>
 </head>
 <body class="min-h-screen flex flex-col" style="background:#f9f9fb;">
@@ -1410,7 +1429,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.7.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.8.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1432,14 +1451,26 @@ select.apple-input {
   <!-- STATION DETAIL PAGE (단일 상세 페이지 — 어디서든 지점 클릭 시 표시) -->
   <!-- ================================================================== -->
   <div id="tabStationDetail" class="tab-content hidden fade-in">
-    <!-- 뒤로 버튼 + 제목 -->
-    <div class="flex items-center gap-3 mb-6">
+    <!-- 뒤로 버튼 + 제목 + 다운로드 메뉴 -->
+    <div class="flex items-center gap-3 mb-6" id="sdHeaderRow">
       <button onclick="closeStationDetail()" class="pill-btn pill-btn-outline" style="padding:6px 14px;font-size:13px;">
         <svg class="w-4 h-4 inline-block mr-1" style="vertical-align:-2px;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>뒤로
       </button>
       <div>
         <h2 id="sdTitle" class="section-title" style="margin:0;"></h2>
         <p id="sdSubtitle" class="section-subtitle" style="margin:2px 0 0;"></p>
+      </div>
+      <div id="sdDownloadMenu" class="sd-download-menu" style="margin-left:auto;position:relative;">
+        <button type="button" onclick="toggleSdDownloadMenu(event)" class="pill-btn pill-btn-outline" style="padding:6px 14px;font-size:13px;display:inline-flex;align-items:center;gap:6px;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          다운로드
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="sd-download-list">
+          <button type="button" class="sd-download-item" onclick="downloadDetailPDF()">PDF로 저장</button>
+          <button type="button" class="sd-download-item" onclick="downloadDetailHTML()">HTML 파일로 저장</button>
+          <button type="button" class="sd-download-item" onclick="copyDetailHTMLToClipboard()">HTML 클립보드 복사 <span style="font-size:11px;color:#9EA2A1;">(그룹웨어용)</span></button>
+        </div>
       </div>
     </div>
 
@@ -1543,7 +1574,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.7.0',
+  version: '19.8.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -11059,6 +11090,227 @@ function closeStationDetail() {
   switchTab(stationDetailPreviousTab);
 }
 
+// ========================================================================
+// 상세 페이지 다운로드 (PDF / HTML / 그룹웨어 클립보드 복사) — v19.8.0
+// ========================================================================
+
+function toggleSdDownloadMenu(e) {
+  if (e) e.stopPropagation();
+  const menu = document.getElementById('sdDownloadMenu');
+  if (!menu) return;
+  menu.classList.toggle('open');
+}
+
+document.addEventListener('click', (e) => {
+  const menu = document.getElementById('sdDownloadMenu');
+  if (!menu || !menu.classList.contains('open')) return;
+  if (!menu.contains(e.target)) menu.classList.remove('open');
+});
+
+function getDetailFilename() {
+  const title = (document.getElementById('sdTitle')?.textContent || 'detail').trim();
+  const sub = (document.getElementById('sdSubtitle')?.textContent || '').trim();
+  const yearMatch = sub.match(/(\d{4})/);
+  const year = yearMatch ? yearMatch[1] : '';
+  const d = new Date();
+  const date = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}`;
+  const safe = (s) => s.replace(/[\\/:*?"<>|\s]+/g, '_').replace(/_+$/,'');
+  return `[안전기획팀]_${safe(title)}${year ? '_' + year : ''}_${date}`;
+}
+
+function _sdToast(msg, ok = true) {
+  const t = document.createElement('div');
+  t.textContent = msg;
+  t.style.cssText = `position:fixed;left:50%;top:24px;transform:translateX(-50%);background:${ok?'#22C55E':'#D20015'};color:#fff;padding:10px 18px;border-radius:999px;font-size:13px;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,0.15);z-index:9999;`;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+
+// PDF 다운로드 — html2canvas + jsPDF
+async function downloadDetailPDF() {
+  const root = document.getElementById('tabStationDetail');
+  if (!root) return;
+  const menu = document.getElementById('sdDownloadMenu');
+  if (menu) menu.classList.remove('open');
+  if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+    _sdToast('PDF 라이브러리 로딩 실패', false); return;
+  }
+  // 캡처에서 인터랙티브 요소 일시 숨김
+  const hideEls = root.querySelectorAll('#sdDownloadMenu, #sdCarEditBtn, button[onclick="closeStationDetail()"]');
+  hideEls.forEach(el => el.dataset._prevDisplay = el.style.display, el.style.display = 'none');
+  _sdToast('PDF 생성 중…');
+  try {
+    const canvas = await html2canvas(root, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const imgW = pageW;
+    const imgH = canvas.height * imgW / canvas.width;
+    let heightLeft = imgH;
+    let position = 0;
+    const imgData = canvas.toDataURL('image/png');
+    pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
+    heightLeft -= pageH;
+    while (heightLeft > 0) {
+      position = heightLeft - imgH;
+      pdf.addPage();
+      pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
+      heightLeft -= pageH;
+    }
+    pdf.save(getDetailFilename() + '.pdf');
+    _sdToast('PDF 다운로드 완료');
+  } catch (err) {
+    console.error(err);
+    _sdToast('PDF 생성 실패: ' + (err?.message || err), false);
+  } finally {
+    hideEls.forEach(el => { el.style.display = el.dataset._prevDisplay || ''; delete el.dataset._prevDisplay; });
+  }
+}
+
+// 그룹웨어 페이스트용 HTML fragment 빌드
+// — <html>/<head>/<body>/<style>/<link>/<script>/class 금지
+// — 모든 스타일 inline, 차트 canvas → base64 PNG <img>
+// — 각 블록 자체 max-width:760px (외부 wrapper 의존 X)
+function buildExportHTML() {
+  const root = document.getElementById('tabStationDetail');
+  if (!root) return '';
+
+  const W760 = 'width:100%;max-width:760px;margin-left:0;margin-right:auto;box-sizing:border-box;';
+  const CARD = `background:#ffffff;border:1px solid #E5E7EB;border-radius:12px;padding:20px;margin:0 0 16px;${W760}`;
+  const TITLE = 'font-size:24px;font-weight:700;color:#1a1c1d;margin:0 0 4px;';
+  const SUBTITLE = 'font-size:13px;color:#9EA2A1;margin:0 0 16px;';
+  const H3 = 'font-size:15px;font-weight:600;color:#303A3C;margin:0 0 12px;';
+
+  // canvas → img(data URL) 매핑 (원본에서 미리 toDataURL)
+  const canvasMap = new Map();
+  root.querySelectorAll('canvas').forEach(c => {
+    try { canvasMap.set(c.id || c, c.toDataURL('image/png')); } catch(e) { /* tainted */ }
+  });
+
+  const clone = root.cloneNode(true);
+
+  // 인터랙티브·UI-only 제거
+  const removeSel = ['#sdDownloadMenu', '#sdCarEditBtn', 'button', 'svg'];
+  removeSel.forEach(sel => clone.querySelectorAll(sel).forEach(el => el.remove()));
+
+  // canvas → img 치환 (id 기반)
+  clone.querySelectorAll('canvas').forEach(c => {
+    const data = canvasMap.get(c.id);
+    if (!data) { c.remove(); return; }
+    const img = document.createElement('img');
+    img.src = data;
+    img.setAttribute('style', 'display:block;width:100%;height:auto;');
+    c.replaceWith(img);
+  });
+
+  // 모든 노드의 class·이벤트 핸들러 제거 (스타일은 후속 매핑 단계에서 부여)
+  const walk = (node) => {
+    if (node.nodeType !== 1) return;
+    const tagName = node.tagName.toLowerCase();
+    const classList = node.className && typeof node.className === 'string' ? node.className.split(/\s+/) : [];
+    const id = node.id || '';
+
+    // 의미 기반 인라인 스타일 부여
+    let styleAddon = '';
+    if (classList.includes('apple-card')) styleAddon += CARD;
+    if (id === 'sdTitle' || classList.includes('section-title')) styleAddon += TITLE;
+    if (id === 'sdSubtitle' || classList.includes('section-subtitle')) styleAddon += SUBTITLE;
+    if (tagName === 'h3' && !styleAddon) styleAddon += H3;
+    if (tagName === 'table') styleAddon += `${W760}border-collapse:collapse;font-size:13px;background:#fff;`;
+    if (tagName === 'th' || tagName === 'td') styleAddon += 'padding:8px 10px;border:1px solid #E5E7EB;text-align:left;vertical-align:top;';
+    if (tagName === 'th') styleAddon += 'background:#F7F8F9;font-weight:600;color:#303A3C;';
+
+    // 그리드 → flex-wrap (4개 카드/2x2 차트)
+    if (classList.includes('grid')) {
+      styleAddon += `display:flex;flex-wrap:wrap;gap:16px;${W760}margin:0 0 16px;`;
+      // 자식 카드는 flex-basis 설정
+      Array.from(node.children).forEach(child => {
+        const prev = child.getAttribute('style') || '';
+        child.setAttribute('style', prev + ';flex:1 1 340px;min-width:280px;max-width:380px;box-sizing:border-box;');
+      });
+    }
+
+    // 기존 inline style 보존 + 새 styleAddon 추가
+    if (styleAddon) {
+      const prev = node.getAttribute('style') || '';
+      node.setAttribute('style', prev + (prev && !prev.endsWith(';') ? ';' : '') + styleAddon);
+    }
+
+    // 정리: class·id·이벤트 핸들러 제거
+    node.removeAttribute('class');
+    node.removeAttribute('id');
+    Array.from(node.attributes).forEach(a => {
+      if (a.name.startsWith('on')) node.removeAttribute(a.name);
+    });
+
+    // 자식 walk
+    Array.from(node.children).forEach(walk);
+  };
+
+  Array.from(clone.children).forEach(walk);
+
+  // 최상위 wrapper에도 자체 너비 cap
+  const prev = clone.getAttribute('style') || '';
+  clone.setAttribute('style', prev + (prev && !prev.endsWith(';') ? ';' : '') + `${W760}font-family:-apple-system,'Apple SD Gothic Neo',sans-serif;color:#1a1c1d;line-height:1.5;`);
+  clone.removeAttribute('class');
+  clone.removeAttribute('id');
+
+  return clone.outerHTML;
+}
+
+function downloadDetailHTML() {
+  const menu = document.getElementById('sdDownloadMenu');
+  if (menu) menu.classList.remove('open');
+  try {
+    const html = buildExportHTML();
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = getDetailFilename() + '.html';
+    document.body.appendChild(a); a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 1000);
+    _sdToast('HTML 파일 다운로드 완료');
+  } catch (err) {
+    console.error(err);
+    _sdToast('HTML 생성 실패: ' + (err?.message || err), false);
+  }
+}
+
+async function copyDetailHTMLToClipboard() {
+  const menu = document.getElementById('sdDownloadMenu');
+  if (menu) menu.classList.remove('open');
+  try {
+    const html = buildExportHTML();
+    const text = (document.getElementById('sdTitle')?.textContent || '') + '\n' + (document.getElementById('sdSubtitle')?.textContent || '');
+    if (navigator.clipboard && window.ClipboardItem) {
+      const item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' })
+      });
+      await navigator.clipboard.write([item]);
+      _sdToast('클립보드 복사 완료 (그룹웨어에 붙여넣기)');
+    } else {
+      // fallback: contenteditable 통해 execCommand('copy')
+      const div = document.createElement('div');
+      div.contentEditable = 'true';
+      div.style.cssText = 'position:fixed;left:-9999px;top:-9999px;';
+      div.innerHTML = html;
+      document.body.appendChild(div);
+      const range = document.createRange();
+      range.selectNodeContents(div);
+      const sel = window.getSelection();
+      sel.removeAllRanges(); sel.addRange(range);
+      const ok = document.execCommand('copy');
+      sel.removeAllRanges(); div.remove();
+      _sdToast(ok ? '클립보드 복사 완료 (fallback)' : '클립보드 복사 실패', ok);
+    }
+  } catch (err) {
+    console.error(err);
+    _sdToast('클립보드 복사 실패: ' + (err?.message || err), false);
+  }
+}
+
 // --- History API: 브라우저 뒤로가기/앞으로가기 지원 ---
 history.replaceState({ type: 'tab', tab: 0 }, '', '');
 window.addEventListener('popstate', (e) => {
@@ -12162,6 +12414,8 @@ Object.assign(window, {
   // Station Detail
   openStationDetail, closeStationDetail, stationLink, renderDivisionDetail, gatherDivisionData,
   toggleCarEdit, saveCarInputs, loadCarDataFromFirebase,
+  // Detail page download (v19.8.0)
+  toggleSdDownloadMenu, downloadDetailPDF, downloadDetailHTML, copyDetailHTMLToClipboard,
   // Scoring/Utils (for dynamic HTML)
   getTypeLabel, getChecklistName, avgColor, avgBadgeStyle,
   getScheduleStatusLabels, getScheduleStatusBadgeStyle,
