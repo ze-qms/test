@@ -1429,7 +1429,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.8.2</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.8.3</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1574,7 +1574,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.8.2',
+  version: '19.8.3',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -11145,24 +11145,70 @@ async function downloadDetailPDF() {
   hideEls.forEach(el => { el.dataset._prevDisplay = el.style.display; el.style.display = 'none'; });
   _sdToast('PDF 생성 중…');
   try {
-    const canvas = await html2canvas(root, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('p', 'mm', 'a4');
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-    const imgW = pageW;
-    const imgH = canvas.height * imgW / canvas.width;
-    let heightLeft = imgH;
-    let position = 0;
-    const imgData = canvas.toDataURL('image/png');
-    pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
-    heightLeft -= pageH;
-    while (heightLeft > 0) {
-      position = heightLeft - imgH;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', 0, position, imgW, imgH);
-      heightLeft -= pageH;
+    const pageW = pdf.internal.pageSize.getWidth();   // 210mm
+    const pageH = pdf.internal.pageSize.getHeight();  // 297mm
+    const marginX = 12;
+    const marginY = 14;
+    const contentW = pageW - marginX * 2;
+    const contentH = pageH - marginY * 2;
+    const blockGap = 5;
+
+    let cursorY = marginY;
+
+    // 캡처 대상: root의 직접 자식 중 보이는 것 (헤더 포함 — 한글 폰트 지원 위해 이미지로)
+    // 헤더의 뒤로/다운로드 버튼은 hideEls로 이미 숨김 처리됨
+    const blocks = Array.from(root.children).filter(el =>
+      el.offsetHeight > 0 && getComputedStyle(el).display !== 'none'
+    );
+
+    const renderCanvasToPdf = (canvas) => {
+      const hMM = canvas.height * contentW / canvas.width;
+      // 한 페이지에 들어가면: 그대로
+      if (hMM <= contentH) {
+        if (cursorY > marginY && cursorY + hMM > pageH - marginY) {
+          pdf.addPage(); cursorY = marginY;
+        }
+        pdf.addImage(canvas.toDataURL('image/png'), 'PNG', marginX, cursorY, contentW, hMM);
+        cursorY += hMM + blockGap;
+        return;
+      }
+      // 큰 블록: 페이지 단위 슬라이스
+      let srcY = 0;
+      const pxPerMM = canvas.height / hMM;
+      let remainHMM = hMM;
+      while (remainHMM > 0) {
+        const availMM = pageH - marginY - cursorY;
+        if (availMM < 30) { pdf.addPage(); cursorY = marginY; continue; }
+        const sliceMM = Math.min(remainHMM, availMM);
+        const sliceH = Math.floor(sliceMM * pxPerMM);
+        const slice = document.createElement('canvas');
+        slice.width = canvas.width; slice.height = sliceH;
+        const sctx = slice.getContext('2d');
+        sctx.fillStyle = '#ffffff'; sctx.fillRect(0, 0, slice.width, slice.height);
+        sctx.drawImage(canvas, 0, srcY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+        pdf.addImage(slice.toDataURL('image/png'), 'PNG', marginX, cursorY, contentW, sliceMM);
+        srcY += sliceH;
+        remainHMM -= sliceMM;
+        if (remainHMM > 0) { pdf.addPage(); cursorY = marginY; }
+        else cursorY += sliceMM + blockGap;
+      }
+    };
+
+    for (const block of blocks) {
+      const c = await html2canvas(block, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+      renderCanvasToPdf(c);
     }
+
+    // 푸터: 페이지 번호 (helvetica는 한글 미지원이므로 ASCII만)
+    const totalPages = pdf.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      pdf.setPage(p);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(8); pdf.setTextColor('#9EA2A1');
+      pdf.text(`${p} / ${totalPages}`, pageW - marginX, pageH - 6, { align: 'right' });
+    }
+
     pdf.save(getDetailFilename() + '.pdf');
     _sdToast('PDF 다운로드 완료');
   } catch (err) {
