@@ -1429,7 +1429,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.9.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.9.1</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1574,7 +1574,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.9.0',
+  version: '19.9.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -12001,7 +12001,7 @@ function renderDivRadarChart(d) {
     label: '금번(' + d.year + ')', data: currData,
     backgroundColor: 'rgba(59,130,246,0.10)', borderColor: '#3B82F6',
     pointBackgroundColor: '#3B82F6', pointBorderColor: '#fff', pointBorderWidth: 1, pointRadius: 5, borderWidth: 2.5, fill: true,
-    datalabels: { display: true, color: '#1a1c1d', font: { size: 13, weight: '700' }, anchor: 'end', align: 'end', offset: 4, formatter: (v) => v ? v.toFixed(0) + '%' : '' }
+    datalabels: { display: true, color: '#1a1c1d', font: { size: 13, weight: '700' }, anchor: 'end', align: 'start', offset: 8, formatter: (v) => v ? v.toFixed(0) + '%' : '' }
   }];
   let prevData = [];
   if (hasPrev) {
@@ -12238,7 +12238,7 @@ function renderSDRadarChart(d) {
     label: `금번 심사(${d.year})`, data: d.radarCurrent.map(v => +v.toFixed(2)),
     backgroundColor: 'rgba(59,130,246,0.10)', borderColor: '#3B82F6',
     pointBackgroundColor: '#3B82F6', pointBorderColor: '#fff', pointBorderWidth: 1, pointRadius: 5, borderWidth: 2.5, fill: true,
-    datalabels: { display: true, color: '#1a1c1d', font: { size: 13, weight: '700' }, anchor: 'end', align: 'end', offset: 4, formatter: (v) => v ? v.toFixed(2) : '' }
+    datalabels: { display: true, color: '#1a1c1d', font: { size: 13, weight: '700' }, anchor: 'end', align: 'start', offset: 8, formatter: (v) => v ? v.toFixed(2) : '' }
   }];
   if (hasPrev) {
     datasets.push({
