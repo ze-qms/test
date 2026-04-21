@@ -1429,7 +1429,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.9.1</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.9.2</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1574,7 +1574,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.9.1',
+  version: '19.9.2',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -6581,7 +6581,7 @@ function renderDivisionStats() {
     html += `<div style="padding:16px;cursor:pointer;" onclick="document.getElementById('${detailId}').classList.toggle('hidden');this.querySelector('svg').style.transform=document.getElementById('${detailId}').classList.contains('hidden')?'':'rotate(180deg)'">`;
     html += `<div class="flex justify-between items-center mb-2">`;
     html += `<div class="flex items-center gap-3">`;
-    html += `<span style="font-size:15px;font-weight:600;color:#303A3C;">${divName}</span>`;
+    html += `<span style="font-size:15px;">${stationLink(year, divName)}</span>`;
     html += `<span class="badge-pill" style="background:rgba(99,102,241,0.15);color:#6366F1;font-size:11px;">실/본부</span>`;
     html += `</div>`;
     html += `<div class="flex items-center gap-2">`;
