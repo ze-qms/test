@@ -1429,7 +1429,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.8.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.8.1</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1574,7 +1574,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.8.0',
+  version: '19.8.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -11128,12 +11128,17 @@ function _sdToast(msg, ok = true) {
 
 // PDF 다운로드 — html2canvas + jsPDF
 async function downloadDetailPDF() {
+  console.log('[PDF] downloadDetailPDF called');
+  _sdToast('PDF 시작…');
   const root = document.getElementById('tabStationDetail');
-  if (!root) return;
+  if (!root) { _sdToast('상세 페이지 컨테이너 없음', false); return; }
   const menu = document.getElementById('sdDownloadMenu');
   if (menu) menu.classList.remove('open');
-  if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
-    _sdToast('PDF 라이브러리 로딩 실패', false); return;
+  const hasH2C = typeof html2canvas !== 'undefined';
+  const hasJsPDF = typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF;
+  console.log('[PDF] html2canvas:', hasH2C, 'jspdf:', hasJsPDF);
+  if (!hasH2C || !hasJsPDF) {
+    _sdToast(`PDF 라이브러리 로딩 실패 (h2c:${hasH2C}, jspdf:${hasJsPDF})`, false); return;
   }
   // 캡처에서 인터랙티브 요소 일시 숨김
   const hideEls = root.querySelectorAll('#sdDownloadMenu, #sdCarEditBtn, button[onclick="closeStationDetail()"]');
@@ -11213,14 +11218,37 @@ function buildExportHTML() {
   });
 
   // canvas → img 치환 (id 기반)
+  // ★ canvas 부모는 fixed height(예: height:320px)를 가지므로
+  //   img(height:auto)로 치환 시 빈 여백 발생 → 부모 height 제거
   clone.querySelectorAll('canvas').forEach(c => {
     const data = canvasMap.get(c.id);
     if (!data) { c.remove(); return; }
     const img = document.createElement('img');
     img.src = data;
-    img.setAttribute('style', 'display:block;width:100%;height:auto;');
+    // 원본 캔버스 비율 유지 — width 100% + 자연 비율 height
+    img.setAttribute('style', 'display:block;width:100%;height:auto;max-width:100%;');
+    // 부모 컨테이너 fixed height 제거 (height·min-height·max-height)
+    let p = c.parentElement;
+    for (let i = 0; i < 3 && p; i++) {
+      const s = p.getAttribute('style') || '';
+      if (/height\s*:/i.test(s)) {
+        const cleaned = s.replace(/(?:^|;)\s*(?:min-|max-)?height\s*:[^;]+/gi, '').replace(/^;+/, '');
+        p.setAttribute('style', cleaned + ';height:auto;');
+      }
+      p = p.parentElement;
+    }
     c.replaceWith(img);
   });
+
+  // 차트 카드 안의 빈 div(범례 컨테이너 등) 정리 — 텍스트도 자식도 없는 빈 노드 제거
+  // 두 번 돌려서 연쇄적으로 비게 된 부모도 수거
+  for (let pass = 0; pass < 2; pass++) {
+    clone.querySelectorAll('div').forEach(d => {
+      if (d.children.length === 0 && !d.textContent.trim() && !d.querySelector('img,canvas,table,svg')) {
+        d.remove();
+      }
+    });
+  }
 
   // 모든 노드의 class·이벤트 핸들러 제거 (스타일은 후속 매핑 단계에서 부여)
   const walk = (node) => {
