@@ -1429,7 +1429,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.8.3</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.9.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1574,7 +1574,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.8.3',
+  version: '19.9.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -11908,15 +11908,16 @@ function renderDivBarChart(d) {
   }
   datasets.push({
     label: '금번(' + d.year + ')', data: currData,
-    backgroundColor: 'rgba(210,0,21,0.8)', borderRadius: 4, barPercentage: 0.7, order: 1,
-    datalabels: { display: true, color: '#fff', font: { size: 11, weight: '700' }, anchor: 'center', align: 'center', formatter: (v) => v ? v.toFixed(1) + '%' : '' }
+    backgroundColor: ['#D20015', '#3B82F6', '#22C55E'], borderRadius: 4, barPercentage: 0.75, categoryPercentage: 0.75, order: 1,
+    datalabels: { display: true, color: '#1a1c1d', font: { size: 14, weight: '700' }, anchor: 'end', align: 'top', offset: 2, formatter: (v) => v ? v.toFixed(1) + '%' : '' }
   });
   chartInstances['sdBarChart'] = new Chart(ctx, {
     type: 'bar', data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      scales: { y: { min: 0, max: 100, ticks: { stepSize: 20, font: { size: 11 }, callback: v => v + '%' }, grid: { color: 'rgba(192,206,209,0.3)' } }, x: { grid: { display: false }, ticks: { font: { size: 11 } } } },
-      plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } }, datalabels: { display: false } }
+      layout: { padding: { top: 18 } },
+      scales: { y: { min: 0, max: 100, ticks: { stepSize: 25, font: { size: 12 }, callback: v => v + '%' }, grid: { color: 'rgba(192,206,209,0.25)' } }, x: { grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: '#303A3C' } } },
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 12 }, boxWidth: 14, padding: 12 } }, datalabels: { display: false } }
     },
     plugins: [ChartDataLabels]
   });
@@ -11934,15 +11935,15 @@ function renderDivCategoryBar(d) {
       rates.push(cr.complianceRate);
     }
   }
-  const bgColors = rates.map(r => r >= 90 ? 'rgba(34,197,94,0.7)' : r >= 70 ? 'rgba(245,158,11,0.7)' : 'rgba(210,0,21,0.7)');
+  const bgColors = rates.map(r => r >= 90 ? '#22C55E' : r >= 70 ? '#F59E0B' : '#D20015');
   chartInstances['sdCarChart'] = new Chart(ctx, {
     type: 'bar',
-    data: { labels, datasets: [{ label: '적합률', data: rates, backgroundColor: bgColors, borderRadius: 4, barPercentage: 0.75,
-      datalabels: { display: true, color: '#fff', font: { size: 10, weight: '700' }, anchor: 'center', align: 'center', formatter: v => v.toFixed(1) + '%' } }] },
+    data: { labels, datasets: [{ label: '적합률', data: rates, backgroundColor: bgColors, borderRadius: 3, barPercentage: 0.85, categoryPercentage: 0.7,
+      datalabels: { display: true, color: '#1a1c1d', font: { size: 12, weight: '700' }, anchor: 'end', align: 'right', offset: 4, formatter: v => v.toFixed(1) + '%' } }] },
     options: {
       indexAxis: 'y', responsive: true, maintainAspectRatio: false,
-      layout: { padding: { right: 10 } },
-      scales: { x: { min: 0, max: 100, ticks: { stepSize: 25, font: { size: 10 }, callback: v => v + '%' }, grid: { color: 'rgba(192,206,209,0.3)' } }, y: { grid: { display: false }, ticks: { font: { size: 10 }, autoSkip: false } } },
+      layout: { padding: { right: 36 } },
+      scales: { x: { position: 'top', min: 0, max: 100, ticks: { stepSize: 25, font: { size: 11 }, callback: v => v + '%' }, grid: { color: 'rgba(192,206,209,0.25)' } }, y: { grid: { display: false }, ticks: { font: { size: 11, weight: '500' }, color: '#303A3C', autoSkip: false } } },
       plugins: { legend: { display: false }, datalabels: { display: false } }
     },
     plugins: [ChartDataLabels]
@@ -11956,12 +11957,13 @@ function renderDivDoughnutChart(d) {
   const counts = [d.totalS, d.totalU, d.totalNA];
   const total = d.totalS + d.totalU + d.totalNA || 1;
   chartInstances['sdDoughnutChart'] = new Chart(ctx, {
-    type: 'doughnut',
-    data: { labels: ['적합(S)', '부적합(U)', '해당없음(NA)'], datasets: [{ data: counts, backgroundColor: ['#22C55E', '#D20015', '#9EA2A1'], borderWidth: 3, borderColor: '#ffffff', hoverOffset: 12, offset: [6, 6, 6], spacing: 2 }] },
+    type: 'pie',
+    data: { labels: ['적합(S)', '부적합(U)', '해당없음(NA)'], datasets: [{ data: counts, backgroundColor: ['#22C55E', '#D20015', '#9EA2A1'], borderWidth: 2, borderColor: '#ffffff', hoverOffset: 10, offset: [4, 4, 4] }] },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '45%',
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: 36 },
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12,
+        legend: { position: 'bottom', labels: { font: { size: 12 }, boxWidth: 14, padding: 12,
           generateLabels: (chart) => chart.data.labels.map((label, i) => {
             const val = chart.data.datasets[0].data[i];
             const pct = total > 0 ? ((val / total) * 100).toFixed(0) : 0;
@@ -11970,23 +11972,11 @@ function renderDivDoughnutChart(d) {
         }},
         datalabels: {
           display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
-          color: (ctx) => {
-            const total2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            const pct = total2 > 0 ? (ctx.dataset.data[ctx.dataIndex] / total2 * 100) : 0;
-            return pct < 10 ? '#303A3C' : '#fff';
-          },
-          font: { size: 11, weight: '700' },
-          anchor: (ctx) => {
-            const total2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            const pct = total2 > 0 ? (ctx.dataset.data[ctx.dataIndex] / total2 * 100) : 0;
-            return pct < 10 ? 'end' : 'center';
-          },
-          align: (ctx) => {
-            const total2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            const pct = total2 > 0 ? (ctx.dataset.data[ctx.dataIndex] / total2 * 100) : 0;
-            return pct < 10 ? 'end' : 'center';
-          },
-          offset: 4,
+          color: '#1a1c1d',
+          font: { size: 12, weight: '700' },
+          anchor: 'end',
+          align: 'end',
+          offset: 8,
           formatter: (value) => { const pct = ((value / total) * 100).toFixed(0); return value + '건, ' + pct + '%'; }
         }
       }
@@ -12009,8 +11999,9 @@ function renderDivRadarChart(d) {
   });
   const datasets = [{
     label: '금번(' + d.year + ')', data: currData,
-    backgroundColor: 'rgba(210,0,21,0.12)', borderColor: '#D20015',
-    pointBackgroundColor: '#D20015', pointRadius: 4, borderWidth: 2, fill: true
+    backgroundColor: 'rgba(59,130,246,0.10)', borderColor: '#3B82F6',
+    pointBackgroundColor: '#3B82F6', pointBorderColor: '#fff', pointBorderWidth: 1, pointRadius: 5, borderWidth: 2.5, fill: true,
+    datalabels: { display: true, color: '#1a1c1d', font: { size: 13, weight: '700' }, anchor: 'end', align: 'end', offset: 4, formatter: (v) => v ? v.toFixed(0) + '%' : '' }
   }];
   let prevData = [];
   if (hasPrev) {
@@ -12021,21 +12012,22 @@ function renderDivRadarChart(d) {
     });
     datasets.push({
       label: '직전(' + d.prevYear + ')', data: prevData,
-      backgroundColor: 'rgba(86,90,91,0.08)', borderColor: '#9EA2A1',
-      pointBackgroundColor: '#9EA2A1', pointRadius: 3, borderWidth: 1.5, fill: true, borderDash: [4, 4]
+      backgroundColor: 'rgba(86,90,91,0.06)', borderColor: '#9EA2A1',
+      pointBackgroundColor: '#9EA2A1', pointRadius: 3, borderWidth: 1.5, fill: true, borderDash: [4, 4],
+      datalabels: { display: false }
     });
   }
   chartInstances['sdRadarChart'] = new Chart(ctx, {
     type: 'radar', data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
-      layout: { padding: { top: 20, bottom: 10, left: 20, right: 20 } },
-      scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, backdropColor: 'transparent', font: { size: 8 }, callback: v => v + '%' }, grid: { color: 'rgba(192,206,209,0.4)' }, pointLabels: { font: { size: 10, weight: '600' }, color: '#303A3C', padding: 12 } } },
+      layout: { padding: { top: 20, bottom: 10, left: 30, right: 30 } },
+      scales: { r: { min: 0, max: 100, ticks: { stepSize: 25, backdropColor: 'transparent', font: { size: 10 }, color: '#9EA2A1', callback: v => v + '%' }, grid: { color: 'rgba(192,206,209,0.4)' }, angleLines: { color: 'rgba(192,206,209,0.4)' }, pointLabels: { font: { size: 12, weight: '600' }, color: '#303A3C', padding: 14 } } },
       plugins: {
-        legend: { display: false },
-        datalabels: false
+        legend: { display: false }
       }
-    }
+    },
+    plugins: [ChartDataLabels]
   });
   // HTML 범례: 지점 스타일 (색상 도트 + 테이블)
   const legendEl = document.getElementById('sdRadarLegend');
@@ -12176,22 +12168,23 @@ function renderSDBarChart(d) {
       d.paxResult ? +d.paxResult.overallAverage.toFixed(2) : 0,
       d.rampResult ? +d.rampResult.overallAverage.toFixed(2) : 0
     ],
-    backgroundColor: 'rgba(210,0,21,0.8)',
-    borderRadius: 4, barPercentage: 0.7,
+    backgroundColor: ['#D20015', '#3B82F6', '#22C55E', '#F59E0B'],
+    borderRadius: 4, barPercentage: 0.75, categoryPercentage: 0.75,
     order: 1,
-    datalabels: { display: true, color: '#fff', font: { size: 11, weight: '700' }, anchor: 'center', align: 'center', formatter: (v) => v ? v.toFixed(2) : '' }
+    datalabels: { display: true, color: '#1a1c1d', font: { size: 14, weight: '700' }, anchor: 'end', align: 'top', offset: 2, formatter: (v) => v ? v.toFixed(2) : '' }
   });
   chartInstances['sdBarChart'] = new Chart(ctx, {
     type: 'bar',
     data: { labels: ['총 평균', '항공사', '여객 협력사', '램프 협력사'], datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 18 } },
       scales: {
-        y: { min: 0, max: 4, ticks: { stepSize: 0.5, font: { size: 11 } }, grid: { color: 'rgba(192,206,209,0.3)' } },
-        x: { grid: { display: false }, ticks: { font: { size: 11 } } }
+        y: { min: 0, max: 4, ticks: { stepSize: 1, font: { size: 12 } }, grid: { color: 'rgba(192,206,209,0.25)' } },
+        x: { grid: { display: false }, ticks: { font: { size: 12, weight: '500' }, color: '#303A3C' } }
       },
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } },
+        legend: { position: 'bottom', labels: { font: { size: 12 }, boxWidth: 14, padding: 12 } },
         tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw?.toFixed(2) || '-'}` } },
         datalabels: { display: false }
       }
@@ -12212,21 +12205,22 @@ function renderSDCarChart(carData) {
     data: {
       labels: CAR_CATEGORIES,
       datasets: [
-        { label: '금번심사', data: currData, backgroundColor: 'rgba(210,0,21,0.8)', borderRadius: 4, barPercentage: 0.7,
-          datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#fff', font: { size: 10, weight: '700' }, anchor: 'center', align: 'center', formatter: (v) => v + '건' } },
-        { label: '직전심사', data: prevData, backgroundColor: 'rgba(86,90,91,0.5)', borderRadius: 4, barPercentage: 0.7,
-          datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#fff', font: { size: 10, weight: '600' }, anchor: 'center', align: 'center', formatter: (v) => v + '건' } }
+        { label: '금번심사', data: currData, backgroundColor: '#D20015', borderRadius: 3, barPercentage: 0.85, categoryPercentage: 0.7,
+          datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#1a1c1d', font: { size: 12, weight: '700' }, anchor: 'end', align: 'right', offset: 4, formatter: (v) => v + '건' } },
+        { label: '직전심사', data: prevData, backgroundColor: '#3B82F6', borderRadius: 3, barPercentage: 0.85, categoryPercentage: 0.7,
+          datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#1a1c1d', font: { size: 11, weight: '600' }, anchor: 'end', align: 'right', offset: 4, formatter: (v) => v + '건' } }
       ]
     },
     options: {
       indexAxis: 'y',
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { right: 30 } },
       scales: {
-        x: { beginAtZero: true, max: maxVal + 1, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(192,206,209,0.3)' } },
-        y: { grid: { display: false }, ticks: { font: { size: 10 } } }
+        x: { position: 'top', beginAtZero: true, max: maxVal + 1, ticks: { stepSize: 1, font: { size: 11 } }, grid: { color: 'rgba(192,206,209,0.25)' } },
+        y: { grid: { display: false }, ticks: { font: { size: 11, weight: '500' }, color: '#303A3C', autoSkip: false } }
       },
       plugins: {
-        legend: { position: 'bottom', labels: { font: { size: 11 }, boxWidth: 12, padding: 12 } },
+        legend: { position: 'bottom', labels: { font: { size: 12 }, boxWidth: 14, padding: 12 } },
         datalabels: { display: false }
       }
     },
@@ -12242,14 +12236,16 @@ function renderSDRadarChart(d) {
   const hasPrev = d.prevYear !== null;
   const datasets = [{
     label: `금번 심사(${d.year})`, data: d.radarCurrent.map(v => +v.toFixed(2)),
-    backgroundColor: 'rgba(210,0,21,0.12)', borderColor: '#D20015',
-    pointBackgroundColor: '#D20015', pointRadius: 4, borderWidth: 2, fill: true
+    backgroundColor: 'rgba(59,130,246,0.10)', borderColor: '#3B82F6',
+    pointBackgroundColor: '#3B82F6', pointBorderColor: '#fff', pointBorderWidth: 1, pointRadius: 5, borderWidth: 2.5, fill: true,
+    datalabels: { display: true, color: '#1a1c1d', font: { size: 13, weight: '700' }, anchor: 'end', align: 'end', offset: 4, formatter: (v) => v ? v.toFixed(2) : '' }
   }];
   if (hasPrev) {
     datasets.push({
       label: `직전 심사(${d.prevYear})`, data: d.radarPrev.map(v => +v.toFixed(2)),
-      backgroundColor: 'rgba(86,90,91,0.08)', borderColor: '#9EA2A1',
-      pointBackgroundColor: '#9EA2A1', pointRadius: 3, borderWidth: 1.5, fill: true, borderDash: [4, 4]
+      backgroundColor: 'rgba(86,90,91,0.06)', borderColor: '#9EA2A1',
+      pointBackgroundColor: '#9EA2A1', pointRadius: 3, borderWidth: 1.5, fill: true, borderDash: [4, 4],
+      datalabels: { display: false }
     });
   }
   chartInstances['sdRadarChart'] = new Chart(ctx, {
@@ -12257,16 +12253,18 @@ function renderSDRadarChart(d) {
     data: { labels, datasets },
     options: {
       responsive: true, maintainAspectRatio: false,
+      layout: { padding: { top: 20, bottom: 10, left: 30, right: 30 } },
       scales: {
-        r: { min: 0, max: 4, ticks: { stepSize: 1, backdropColor: 'transparent', font: { size: 9 } },
-          grid: { color: 'rgba(192,206,209,0.4)' }, pointLabels: { font: { size: 10, weight: '600' }, color: '#303A3C', padding: 6 } }
+        r: { min: 0, max: 4, ticks: { stepSize: 1, backdropColor: 'transparent', font: { size: 10 }, color: '#9EA2A1' },
+          grid: { color: 'rgba(192,206,209,0.4)' }, angleLines: { color: 'rgba(192,206,209,0.4)' },
+          pointLabels: { font: { size: 12, weight: '600' }, color: '#303A3C', padding: 14 } }
       },
       plugins: {
         legend: { display: false },
-        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw?.toFixed(2) || '-'}` } },
-        datalabels: false
+        tooltip: { callbacks: { label: ctx => `${ctx.dataset.label}: ${ctx.raw?.toFixed(2) || '-'}` } }
       }
-    }
+    },
+    plugins: [ChartDataLabels]
   });
   // HTML 범례: 항목명(검정) | 금번(빨강) | 직전(회색)
   const legendEl = document.getElementById('sdRadarLegend');
@@ -12297,52 +12295,31 @@ function renderSDDoughnutChart(d) {
   const counts = [d.gradeCounts[1], d.gradeCounts[2], d.gradeCounts[3], d.gradeCounts[4]];
   const total = d.gradeTotal || 1;
   chartInstances['sdDoughnutChart'] = new Chart(ctx, {
-    type: 'doughnut',
+    type: 'pie',
     data: {
       labels: ['1단계', '2단계', '3단계', '4단계'],
       datasets: [{
         data: counts,
-        backgroundColor: ['#D20015', '#F59E0B', '#22C55E', '#3B82F6'],
-        borderWidth: 3,
+        backgroundColor: ['#3B82F6', '#F59E0B', '#22C55E', '#FACC15'],
+        borderWidth: 2,
         borderColor: '#ffffff',
-        hoverOffset: 12,
-        offset: [6, 6, 6, 6],
-        spacing: 2
+        hoverOffset: 10,
+        offset: [4, 4, 4, 4]
       }]
     },
     options: {
-      responsive: true, maintainAspectRatio: false, cutout: '45%',
-      layout: { padding: 40 },
+      responsive: true, maintainAspectRatio: false,
+      layout: { padding: 36 },
       plugins: {
         legend: { display: false },
         tooltip: { callbacks: { label: ctx => { const pct = total > 0 ? ((ctx.raw / total) * 100).toFixed(1) : 0; return `${ctx.label}: ${ctx.raw}건 (${pct}%)`; } } },
         datalabels: {
           display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0,
-          color: (ctx) => {
-            const t2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            const pct2 = t2 > 0 ? (ctx.dataset.data[ctx.dataIndex] / t2 * 100) : 0;
-            return pct2 < 10 ? '#303A3C' : '#fff';
-          },
-          font: (ctx) => {
-            const t2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            const pct2 = t2 > 0 ? (ctx.dataset.data[ctx.dataIndex] / t2 * 100) : 0;
-            return { size: pct2 < 10 ? 10 : 11, weight: '700' };
-          },
-          anchor: (ctx) => {
-            const t2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            const pct2 = t2 > 0 ? (ctx.dataset.data[ctx.dataIndex] / t2 * 100) : 0;
-            return pct2 < 10 ? 'end' : 'center';
-          },
-          align: (ctx) => {
-            const t2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            const pct2 = t2 > 0 ? (ctx.dataset.data[ctx.dataIndex] / t2 * 100) : 0;
-            return pct2 < 10 ? 'end' : 'center';
-          },
-          offset: (ctx) => {
-            const t2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
-            const pct2 = t2 > 0 ? (ctx.dataset.data[ctx.dataIndex] / t2 * 100) : 0;
-            return pct2 < 10 ? 20 : 0;
-          },
+          color: '#1a1c1d',
+          font: { size: 12, weight: '700' },
+          anchor: 'end',
+          align: 'end',
+          offset: 8,
           formatter: (value, ctx) => {
             const t2 = ctx.dataset.data.reduce((a, b) => a + b, 0);
             if (t2 === 0) return '';
@@ -12357,7 +12334,7 @@ function renderSDDoughnutChart(d) {
   // HTML 범례: 색상 칩 + 항목명(검정) + 건수/%(빨강)
   const dLegendEl = document.getElementById('sdDoughnutLegend');
   if (dLegendEl) {
-    const colors = ['#D20015', '#F59E0B', '#22C55E', '#3B82F6'];
+    const colors = ['#3B82F6', '#F59E0B', '#22C55E', '#FACC15'];
     const names = ['1단계', '2단계', '3단계', '4단계'];
     let dl = '<div style="display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:center;">';
     names.forEach((n, i) => {
