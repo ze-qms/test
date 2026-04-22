@@ -630,14 +630,14 @@ select.apple-input {
 .dday-pulse { animation: ddayPulse 1.5s ease-in-out infinite; }
 .dday-card { border-radius: 16px; padding: 16px; min-width: 140px; min-height: 180px; cursor: pointer; transition: transform 0.15s ease, box-shadow 0.15s ease; display: flex; flex-direction: column; }
 .dday-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important; }
-/* v19.9.9: 홈 다가오는 심사 — 완료/다가오는 카드 크기 통일 + 가로 스와이프 전용 */
+/* v19.9.11: 홈 다가오는 심사 — 완료/다가오는 카드 너비·높이 완전 일치 (고정 height) */
 .home-dday-completed-col { width: 150px !important; }
 .home-dday-completed-col .dday-card,
-.dday-card-row .dday-card { min-width: 150px !important; width: 150px; min-height: 180px; }
+.dday-card-row .dday-card { min-width: 150px !important; width: 150px; height: 200px; min-height: 0; }
 @media (max-width: 480px) {
   .home-dday-completed-col { width: 140px !important; }
   .home-dday-completed-col .dday-card,
-  .dday-card-row .dday-card { min-width: 140px !important; width: 140px; padding: 12px; min-height: 170px; }
+  .dday-card-row .dday-card { min-width: 140px !important; width: 140px; padding: 12px; height: 190px; }
 }
 .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
 
@@ -1439,7 +1439,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.9.10</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.9.11</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1584,7 +1584,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.9.10',
+  version: '19.9.11',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -10628,7 +10628,7 @@ function renderHomeMySchedule(currentYear) {
     c += '<div style="font-size:15px;font-weight:600;color:#303A3C;margin-bottom:4px;">' + item.station + '</div>';
     c += '<div style="font-size:12px;color:#9EA2A1;margin-bottom:8px;">' + dateStr + '</div>';
     if (isComplete && item.avgScore !== null) {
-      c += '<div class="badge-pill" style="' + Scoring.getBadgeStyle(item.avgScore) + 'font-size:12px;font-weight:600;">' + item.avgScore.toFixed(2) + '점</div>';
+      c += '<div style="margin-top:auto;"><div class="badge-pill" style="' + Scoring.getBadgeStyle(item.avgScore) + 'font-size:12px;font-weight:600;display:inline-block;">' + item.avgScore.toFixed(2) + '점</div></div>';
     } else if (!isComplete) {
       c += '<div style="margin-top:auto;display:flex;flex-direction:column;gap:6px;">';
       c += '<div style="font-size:12px;color:#D20015;font-weight:500;">상세 &rsaquo;</div>';
