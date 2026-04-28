@@ -944,7 +944,11 @@ select.apple-input {
         <h3 style="font-size:17px;font-weight:600;color:#303A3C;">점검표 유형 선택</h3>
         <p class="section-subtitle mt-1" id="phase3Subtitle"></p>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="typeSelectCards"></div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6" id="typeSelectCards"></div>
+      <!-- v19.11.1: Phase 2 하단 메모/체크리스트 섹션 -->
+      <div class="apple-card p-1" style="margin-top:16px;">
+        <div id="phase2MemoArea"></div>
+      </div>
     </div>
 
     <!-- Phase 3 (deprecated, v19.10.0 부터 Phase 2 인라인 통합) -->
@@ -1455,7 +1459,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.11.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.11.1</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1564,16 +1568,7 @@ select.apple-input {
       <div class="overflow-x-auto" id="sdCategoryTable"></div>
     </div>
 
-    <!-- v19.11.0: 심사 메모 카드 -->
-    <div class="apple-card p-6 mb-6">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px;">
-        <h3 style="font-size:15px;font-weight:600;color:#303A3C;margin:0;">심사 메모 / 체크리스트</h3>
-        <div style="display:flex;gap:6px;">
-          <button onclick="onSDMemoOpenWorkspace()" class="pill-btn pill-btn-outline" style="font-size:12px;padding:6px 14px;">메모 작업창 열기 →</button>
-        </div>
-      </div>
-      <div id="sdMemoCardArea"></div>
-    </div>
+    <!-- v19.11.1: Station Detail 메모 카드 제거 — Phase 2 하단으로 이동 -->
   </div>
 
 </main>
@@ -1630,7 +1625,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.11.0',
+  version: '19.11.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -10025,8 +10020,7 @@ function setupFirebaseListeners() {
       // 활성 화면 갱신
       try {
         if (typeof renderMemoWorkspace === 'function' && activeTab === 7) renderMemoWorkspace();
-        if (typeof renderMemoSidePanel === 'function' && activeTab === 1 && inputPhase === 4) renderMemoSidePanel();
-        if (typeof refreshStationMemoCard === 'function') refreshStationMemoCard();
+        if (typeof renderMemoSidePanel === 'function' && activeTab === 1 && (inputPhase === 4 || inputPhase === 2)) renderMemoSidePanel();
       } catch(e) {}
     }
   });
@@ -12046,7 +12040,7 @@ function onMemoDelete(year, station, memoId) {
     showToast('삭제되었습니다.', 'success');
     if (activeTab === 7) renderMemoWorkspace();
     if (typeof renderMemoSidePanel === 'function' && activeTab === 1 && inputPhase === 4) renderMemoSidePanel();
-    if (typeof refreshStationMemoCard === 'function') refreshStationMemoCard();
+    if (typeof renderMemoSidePanel === 'function' && activeTab === 1 && (inputPhase === 2 || inputPhase === 4)) renderMemoSidePanel();
   }
 }
 function onMemoChecklistToggle(year, station, memoId, itemId) {
@@ -12153,14 +12147,21 @@ function _renderMemoPanelInner() {
   </div>`;
 }
 
+function _isDeskViewport() {
+  return window.matchMedia && window.matchMedia('(min-width: 769px)').matches;
+}
 function renderMemoSidePanel() {
   const html = _renderMemoPanelInner();
-  // 데스크톱 패널
+  // 데스크톱 패널 — 모바일에서는 절대 표시 안 함
   const desk = document.getElementById('memoSidePanel');
   if (desk) {
     desk.innerHTML = html;
-    desk.classList.toggle('hidden', !_memoPanelOpen);
+    const showDesk = _isDeskViewport() && _memoPanelOpen;
+    desk.style.display = showDesk ? 'block' : 'none';
   }
+  // Phase 2 하단 인라인 영역 (있으면 갱신)
+  const phase2Area = document.getElementById('phase2MemoArea');
+  if (phase2Area) phase2Area.innerHTML = html;
   // 모바일 바텀시트 (열려있을 때만 갱신)
   const sheet = document.getElementById('memoBottomSheet');
   const sheetBody = document.getElementById('memoBottomSheetBody');
@@ -12203,34 +12204,43 @@ function updateMemoBadge() {
 }
 
 function showMemoPanelControls() {
-  // Phase 4 진입/이탈에 따라 데스크톱 패널 + 모바일 FAB 가시성
+  // v19.11.1: Phase 4 사이드 패널은 데스크톱 전용. Phase 2 하단 인라인은 모든 화면. 모바일은 FAB.
   const inPhase4 = (activeTab === 1 && typeof inputPhase !== 'undefined' && inputPhase === 4);
+  const inPhase2 = (activeTab === 1 && typeof inputPhase !== 'undefined' && inputPhase === 2);
   const desk = document.getElementById('memoSidePanel');
   const fab = document.getElementById('memoFab');
   const toggleBtn = document.getElementById('memoPanelToggleDesktop');
-  if (desk) desk.classList.toggle('hidden', !inPhase4 || !_memoPanelOpen);
-  if (toggleBtn) toggleBtn.style.display = inPhase4 ? '' : 'none';
-  if (fab) {
-    // 모바일에서만 표시 — md:hidden 이미 적용. JS로 inPhase4 분기
-    fab.style.display = inPhase4 ? 'flex' : 'none';
-  }
-  if (inPhase4) renderMemoSidePanel();
+  const isDesk = _isDeskViewport();
+
+  // 데스크톱 사이드 패널 — Phase 4에서만, 데스크톱 viewport에서만
+  if (desk) desk.style.display = (inPhase4 && _memoPanelOpen && isDesk) ? 'block' : 'none';
+  // 토글 버튼 — Phase 4 + 데스크톱
+  if (toggleBtn) toggleBtn.style.display = (inPhase4 && isDesk) ? '' : 'none';
+  // FAB — Phase 4 + 모바일
+  if (fab) fab.style.display = (inPhase4 && !isDesk) ? 'flex' : 'none';
+
+  // Phase 2 또는 Phase 4 진입 시 메모 영역 갱신
+  if (inPhase2 || inPhase4) renderMemoSidePanel();
 }
 
 function toggleMemoPanel() {
+  if (!_isDeskViewport()) {
+    // 모바일에서는 토글 버튼이 보이면 안 되지만 안전망
+    openMemoPanel();
+    return;
+  }
   _memoPanelOpen = !_memoPanelOpen;
   const desk = document.getElementById('memoSidePanel');
-  if (desk) desk.classList.toggle('hidden', !_memoPanelOpen);
+  if (desk) desk.style.display = _memoPanelOpen ? 'block' : 'none';
   if (_memoPanelOpen) renderMemoSidePanel();
 }
 
 function openMemoPanel(focusSection) {
   // 데스크톱: 패널 펼치기. 모바일: 바텀시트 오픈
-  const isDesk = window.matchMedia && window.matchMedia('(min-width: 769px)').matches;
-  if (isDesk) {
+  if (_isDeskViewport()) {
     _memoPanelOpen = true;
     const desk = document.getElementById('memoSidePanel');
-    if (desk) desk.classList.remove('hidden');
+    if (desk) desk.style.display = 'block';
     renderMemoSidePanel();
   } else {
     const overlay = document.getElementById('memoBottomSheetOverlay');
@@ -12249,9 +12259,15 @@ function closeMemoPanel() {
 }
 
 // 빠른 작성 액션 (Phase 4 패널)
+// v19.11.1: _memoQuickDraft를 절대 재할당하지 말 것 (window 노출 참조와 분리되면 inline oninput이 옛 객체에 mutate되어 빈 값으로 저장 시도됨)
 function onMemoQuickOpen() { _memoQuickDraft.open = true; renderMemoSidePanel(); }
 function onMemoQuickCancel() {
-  _memoQuickDraft = { type: 'note', visibility: 'public', text: '', items: [], title: '', open: false };
+  _memoQuickDraft.type = 'note';
+  _memoQuickDraft.visibility = 'public';
+  _memoQuickDraft.text = '';
+  _memoQuickDraft.items = [];
+  _memoQuickDraft.title = '';
+  _memoQuickDraft.open = false;
   renderMemoSidePanel();
 }
 function onMemoQuickType(t) { _memoQuickDraft.type = t; if (t === 'checklist') _memoQuickDraft.visibility = 'private'; renderMemoSidePanel(); }
@@ -12995,8 +13011,7 @@ function renderStationDetail(year, station) {
   renderSDRadarChart(d);
   renderSDDoughnutChart(d);
   renderSDCategoryTable(d);
-  // v19.11.0: 메모 카드 렌더
-  if (typeof renderStationMemoCard === 'function') renderStationMemoCard();
+  // v19.11.1: Station Detail 메모 카드 제거 (Phase 2 하단으로 이동)
 }
 
 // --- Charts ---
