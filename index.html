@@ -1464,7 +1464,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.11.2</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.11.3</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1630,7 +1630,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.11.2',
+  version: '19.11.3',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -4569,12 +4569,14 @@ function renderChecklistItems(items, scores, remarks, type, options) {
     const selected = scores[item.id];
     const remarkVal = remarks[item.id] || '';
 
-    html += `<div style="padding:12px 20px;border-bottom:1px solid rgba(192,206,209,0.3);">`;
+    html += `<div style="padding:16px 20px;border-bottom:1px solid rgba(192,206,209,0.3);">`;
     // PC: inline row / Mobile: stack
     html += `<div class="checklist-item-row">`;
     html += `<div class="item-text-area flex items-start gap-3">`;
-    html += `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:32px;height:24px;border-radius:6px;background:#303A3C;color:#fff;font-size:11px;font-weight:600;letter-spacing:-0.224px;flex-shrink:0;margin-top:2px;">${item.id}</span>`;
-    html += `<span style="font-size:14px;color:#303A3C;font-weight:400;letter-spacing:-0.374px;line-height:1.47;">${item.text}</span>`;
+    // v19.11.3: 항목 ID 라벨 폰트·크기 키움
+    html += `<span style="display:inline-flex;align-items:center;justify-content:center;min-width:38px;height:28px;border-radius:8px;background:#303A3C;color:#fff;font-size:13px;font-weight:700;letter-spacing:-0.224px;flex-shrink:0;margin-top:2px;">${item.id}</span>`;
+    // v19.11.3: 본문 14→16px, line-height 1.55
+    html += `<span style="font-size:16px;color:#1a1c1d;font-weight:400;letter-spacing:-0.3px;line-height:1.55;">${item.text}</span>`;
     html += `</div>`;
 
     html += `<div class="item-score-area">`;
@@ -4608,12 +4610,13 @@ function renderChecklistItems(items, scores, remarks, type, options) {
 
     // Maturity criteria (grade checklists with item.maturity)
     if (!isBinary && item.maturity) {
-      html += `<details style="margin-left:44px;margin-top:4px;">`;
-      html += `<summary style="font-size:12px;color:#6366F1;cursor:pointer;">성숙도 기준</summary>`;
-      html += `<div style="font-size:12px;color:#565A5B;padding:8px 12px;background:rgba(99,102,241,0.06);border-radius:8px;margin-top:4px;">`;
+      // v19.11.3: 폰트 키움 12→13px
+      html += `<details style="margin-left:50px;margin-top:8px;">`;
+      html += `<summary style="font-size:13px;color:#6366F1;cursor:pointer;font-weight:500;">성숙도 기준</summary>`;
+      html += `<div style="font-size:13px;color:#565A5B;padding:10px 14px;background:rgba(99,102,241,0.06);border-radius:10px;margin-top:6px;line-height:1.6;">`;
       for (const lvl of [1, 2, 3, 4]) {
         if (item.maturity[lvl]) {
-          html += `<div style="margin-bottom:4px;"><span style="color:${SCORE_COLORS[lvl]};font-weight:600;">${lvl}점</span> ${item.maturity[lvl]}</div>`;
+          html += `<div style="margin-bottom:6px;"><span style="color:${SCORE_COLORS[lvl]};font-weight:700;">${lvl}점</span> ${item.maturity[lvl]}</div>`;
         }
       }
       html += `</div></details>`;
@@ -4622,23 +4625,25 @@ function renderChecklistItems(items, scores, remarks, type, options) {
     // Verification & manual (ALL checklist types)
     if (item.verification || item.manual) {
       if (item.verification) {
-        html += `<details style="margin-left:44px;margin-top:2px;"><summary style="font-size:12px;color:#9EA2A1;cursor:pointer;">확인내용 보기</summary><div style="font-size:12px;color:#565A5B;padding:8px 12px;background:rgba(192,206,209,0.15);border-radius:8px;margin-top:4px;white-space:pre-line;">${item.verification}</div></details>`;
+        // v19.11.3: 12→13px
+        html += `<details style="margin-left:50px;margin-top:6px;"><summary style="font-size:13px;color:#9EA2A1;cursor:pointer;font-weight:500;">확인내용 보기</summary><div style="font-size:13px;color:#565A5B;padding:10px 14px;background:rgba(192,206,209,0.15);border-radius:10px;margin-top:6px;white-space:pre-line;line-height:1.6;">${item.verification}</div></details>`;
       }
       if (item.manual) {
-        html += `<div style="margin-left:44px;font-size:11px;color:#987B37;margin-top:2px;">${item.manual}</div>`;
+        // v19.11.3: 11→12px
+        html += `<div style="margin-left:50px;font-size:12px;color:#987B37;margin-top:4px;">${item.manual}</div>`;
       }
     }
 
     // Collapsible remarks
     if (remarkVal) {
-      html += `<div class="remark-input-wrap" style="margin-left:44px;">`;
-      html += `<input type="text" placeholder="비고 / 의견" value="${remarkVal.replace(/"/g, '&quot;')}" onchange="${sp}${options.remarkHandler}('${item.id}', this.value)">`;
+      html += `<div class="remark-input-wrap" style="margin-left:50px;margin-top:8px;">`;
+      html += `<input type="text" placeholder="비고 / 의견" value="${remarkVal.replace(/"/g, '&quot;')}" onchange="${sp}${options.remarkHandler}('${item.id}', this.value)" style="font-size:14px;padding:10px 14px;">`;
       html += `</div>`;
     } else {
-      html += `<div style="margin-left:44px;margin-top:2px;">`;
-      html += `<span class="remark-toggle" onclick="${sp}this.style.display='none';this.nextElementSibling.style.display='block';">+ 비고</span>`;
+      html += `<div style="margin-left:50px;margin-top:6px;">`;
+      html += `<span class="remark-toggle" style="font-size:13px;" onclick="${sp}this.style.display='none';this.nextElementSibling.style.display='block';">+ 비고</span>`;
       html += `<div class="remark-input-wrap" style="display:none;">`;
-      html += `<input type="text" placeholder="비고 / 의견" onchange="${sp}${options.remarkHandler}('${item.id}', this.value)">`;
+      html += `<input type="text" placeholder="비고 / 의견" onchange="${sp}${options.remarkHandler}('${item.id}', this.value)" style="font-size:14px;padding:10px 14px;">`;
       html += `</div></div>`;
     }
     html += `</div>`;
@@ -10656,8 +10661,8 @@ function renderHomeGreeting(currentYear, completedCount, totalCount) {
       '<div style="font-size:20px;font-weight:700;letter-spacing:-0.3px;margin-bottom:4px;">' + greeting + ', ' + (userName || '사용자') + '님</div>' +
       '<div style="font-size:13px;color:rgba(255,255,255,0.6);font-weight:400;">' + summaryText + '</div>' +
     '</div>' +
-    // v19.11.0: 메모 빠른 진입점
-    '<button onclick="onHomeMemoQuickAdd()" style="background:rgba(255,255,255,0.12);color:#fff;border:1px solid rgba(255,255,255,0.2);border-radius:980px;padding:8px 16px;font-size:12px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;flex-shrink:0;">📋 메모 +</button>' +
+    // v19.11.3: 메모 빠른 진입점 — 더 명시적, switchTab 직접 호출로 견고화
+    '<button onclick="window.switchTab && window.switchTab(7);" style="background:rgba(255,255,255,0.18);color:#fff;border:1px solid rgba(255,255,255,0.28);border-radius:980px;padding:11px 22px;font-size:14px;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:8px;flex-shrink:0;letter-spacing:-0.2px;transition:all 0.15s;" onmouseover="this.style.background=\'rgba(255,255,255,0.28)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.18)\'">📋 메모 작성</button>' +
     '</div>';
 }
 function onHomeMemoQuickAdd() {
@@ -11831,55 +11836,55 @@ function _renderMemoCard(memo, opts) {
   opts = opts || {};
   const isMine = currentUser && memo.authorEmpNo === currentUser.empNo;
   const canDelete = isMine || (currentUser && currentUser.role === 'admin' && memo.visibility === 'public');
+  // v19.11.3: Notion 스타일 — 폰트 키움, 메타 13px, 본문 16px, 패딩 18px
   const visBadge = memo.visibility === 'public'
-    ? '<span class="badge-pill" style="background:rgba(0,103,196,0.15);color:#0067C4;font-size:11px;">공유</span>'
-    : '<span class="badge-pill" style="background:rgba(158,162,161,0.15);color:#6E7273;font-size:11px;">나만</span>';
+    ? '<span class="badge-pill" style="background:rgba(0,103,196,0.15);color:#0067C4;font-size:12px;font-weight:600;padding:3px 10px;">공유</span>'
+    : '<span class="badge-pill" style="background:rgba(158,162,161,0.15);color:#6E7273;font-size:12px;font-weight:600;padding:3px 10px;">나만 보기</span>';
   const typeBadge = memo.type === 'checklist'
-    ? '<span class="badge-pill" style="background:rgba(210,0,21,0.12);color:#D20015;font-size:11px;">☑ 체크리스트</span>'
-    : '<span class="badge-pill" style="background:rgba(34,197,94,0.12);color:#22C55E;font-size:11px;">📝 메모</span>';
+    ? '<span class="badge-pill" style="background:rgba(210,0,21,0.12);color:#D20015;font-size:12px;font-weight:600;padding:3px 10px;">☑ 체크리스트</span>'
+    : '<span class="badge-pill" style="background:rgba(34,197,94,0.12);color:#22C55E;font-size:12px;font-weight:600;padding:3px 10px;">📝 메모</span>';
 
   let body = '';
   if (memo.type === 'note') {
-    body = `<div style="font-size:13px;color:#303A3C;line-height:1.6;white-space:pre-wrap;word-break:break-word;">${_esc(memo.content || '')}</div>`;
+    body = `<div style="font-size:16px;color:#1a1c1d;line-height:1.6;white-space:pre-wrap;word-break:break-word;letter-spacing:-0.2px;">${_esc(memo.content || '')}</div>`;
   } else {
     const items = memo.items || [];
     const checked = items.filter(it => it.checked).length;
     const total = items.length;
     const pct = total ? Math.round(checked / total * 100) : 0;
-    // v19.11.2: 제목 제거 — 카운터만 표시
-    body = `<div style="font-size:12px;font-weight:600;color:#565A5B;margin-bottom:8px;">사전 확인 ${checked}/${total} (${pct}%)</div>`;
-    body += '<div style="background:rgba(0,0,0,0.06);border-radius:4px;height:4px;overflow:hidden;margin-bottom:10px;"><div style="background:linear-gradient(135deg,#22C55E,#16a34a);height:100%;width:' + pct + '%;transition:width 0.3s;"></div></div>';
-    body += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    body = `<div style="font-size:13px;font-weight:700;color:#565A5B;margin-bottom:10px;letter-spacing:-0.2px;">사전 확인 <span style="color:${pct===100?'#16a34a':'#D20015'};">${checked}/${total}</span> · ${pct}%</div>`;
+    body += '<div style="background:rgba(0,0,0,0.06);border-radius:4px;height:6px;overflow:hidden;margin-bottom:14px;"><div style="background:linear-gradient(135deg,#22C55E,#16a34a);height:100%;width:' + pct + '%;transition:width 0.3s;"></div></div>';
+    body += '<div style="display:flex;flex-direction:column;gap:10px;">';
     items.forEach(it => {
       const canCheck = isMine;
-      body += `<label style="display:flex;align-items:flex-start;gap:8px;cursor:${canCheck?'pointer':'default'};font-size:13px;${it.checked?'color:#9EA2A1;text-decoration:line-through;':'color:#303A3C;'}">`;
-      body += `<input type="checkbox" ${it.checked?'checked':''} ${canCheck?'':'disabled'} ${canCheck?`onchange="onMemoChecklistToggle(${memo.year},'${_esc(memo.station)}','${memo.id}','${it.id}')"`:''} style="margin-top:3px;flex-shrink:0;">`;
-      body += `<span style="line-height:1.5;word-break:break-word;">${_esc(it.text)}</span></label>`;
+      body += `<label style="display:flex;align-items:flex-start;gap:12px;cursor:${canCheck?'pointer':'default'};font-size:15px;line-height:1.5;${it.checked?'color:#9EA2A1;text-decoration:line-through;':'color:#1a1c1d;'}">`;
+      body += `<input type="checkbox" ${it.checked?'checked':''} ${canCheck?'':'disabled'} ${canCheck?`onchange="onMemoChecklistToggle(${memo.year},'${_esc(memo.station)}','${memo.id}','${it.id}')"`:''} style="margin-top:3px;flex-shrink:0;width:18px;height:18px;cursor:${canCheck?'pointer':'default'};accent-color:#D20015;">`;
+      body += `<span style="word-break:break-word;letter-spacing:-0.2px;">${_esc(it.text)}</span></label>`;
     });
     body += '</div>';
   }
 
   let actions = '';
   if (isMine) {
-    actions += `<button onclick="onMemoEdit('${memo.id}','${memo.year}','${_esc(memo.station)}')" style="background:none;border:none;font-size:12px;color:#6E7273;cursor:pointer;padding:4px 8px;">수정</button>`;
+    actions += `<button onclick="onMemoEdit('${memo.id}','${memo.year}','${_esc(memo.station)}')" style="background:none;border:none;font-size:13px;color:#6E7273;cursor:pointer;padding:6px 12px;font-weight:500;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='rgba(0,0,0,0.05)'" onmouseout="this.style.background='none'">수정</button>`;
   }
   if (canDelete) {
-    actions += `<button onclick="onMemoDelete(${memo.year},'${_esc(memo.station)}','${memo.id}')" style="background:none;border:none;font-size:12px;color:#D20015;cursor:pointer;padding:4px 8px;">삭제</button>`;
+    actions += `<button onclick="onMemoDelete(${memo.year},'${_esc(memo.station)}','${memo.id}')" style="background:none;border:none;font-size:13px;color:#D20015;cursor:pointer;padding:6px 12px;font-weight:500;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='rgba(210,0,21,0.08)'" onmouseout="this.style.background='none'">삭제</button>`;
   }
 
   const showScope = opts.showScope !== false;
   const scopeLine = showScope
-    ? `<div style="font-size:11px;color:#9EA2A1;margin-bottom:6px;">${memo.year} · ${_esc(memo.station)}</div>`
+    ? `<div style="font-size:12px;color:#9EA2A1;margin-bottom:8px;font-weight:500;">${memo.year} · ${_esc(memo.station)}</div>`
     : '';
 
-  return `<div class="apple-card" style="padding:14px;border-left:3px solid ${memo.visibility==='public'?'#0067C4':(memo.type==='checklist'?'#D20015':'#9EA2A1')};">
+  return `<div class="apple-card" style="padding:18px 20px;border-left:4px solid ${memo.visibility==='public'?'#0067C4':(memo.type==='checklist'?'#D20015':'#9EA2A1')};transition:box-shadow 0.15s;" onmouseover="this.style.boxShadow='rgba(0,0,0,0.1) 0px 4px 14px 0px'" onmouseout="this.style.boxShadow='none'">
     ${scopeLine}
-    <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;flex-wrap:wrap;">
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:12px;flex-wrap:wrap;">
       ${typeBadge}${visBadge}
-      <span style="font-size:11px;color:#9EA2A1;margin-left:auto;">${_esc(memo.authorName || '')} · ${_fmtDateShort(memo.updatedAt || memo.createdAt)}</span>
+      <span style="font-size:13px;color:#9EA2A1;margin-left:auto;font-weight:500;">${_esc(memo.authorName || '')} · ${_fmtDateShort(memo.updatedAt || memo.createdAt)}</span>
     </div>
     ${body}
-    <div style="display:flex;justify-content:flex-end;gap:4px;margin-top:8px;">${actions}</div>
+    <div style="display:flex;justify-content:flex-end;gap:4px;margin-top:12px;border-top:1px solid rgba(192,206,209,0.2);padding-top:8px;">${actions}</div>
   </div>`;
 }
 
@@ -11897,46 +11902,54 @@ function _draftFormHTML(idPrefix) {
     </div>`
   ).join('');
 
-  return `<div class="apple-card p-5" id="${idPrefix}_form">
-    <div style="display:flex;gap:6px;margin-bottom:14px;">
-      <button onclick="onMemoDraftType('note')" class="pill-btn ${s.draftType==='note'?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:8px 12px;font-size:13px;">📝 메모</button>
-      <button onclick="onMemoDraftType('checklist')" class="pill-btn ${s.draftType==='checklist'?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:8px 12px;font-size:13px;">☑ 체크리스트</button>
+  // v19.11.3: 작업창 입력 폼 — Notion 스타일, 폰트 키움
+  const itemsHTMLws = (s.draftItems || []).map((it, i) =>
+    `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" class="apple-input" placeholder="확인 항목 입력" value="${_esc(it.text)}" oninput="memoWorkspaceState.draftItems[${i}].text=this.value;" style="flex:1;padding:11px 14px;font-size:15px;">
+      <button onclick="onMemoDraftRemoveItem(${i})" style="background:none;border:none;color:#9EA2A1;font-size:22px;cursor:pointer;padding:6px 10px;border-radius:8px;transition:all 0.15s;" onmouseover="this.style.background='rgba(210,0,21,0.08)';this.style.color='#D20015'" onmouseout="this.style.background='none';this.style.color='#9EA2A1'">×</button>
+    </div>`
+  ).join('');
+
+  return `<div class="apple-card" id="${idPrefix}_form" style="padding:24px;">
+    <div style="display:flex;gap:8px;margin-bottom:18px;">
+      <button onclick="onMemoDraftType('note')" class="pill-btn ${s.draftType==='note'?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:12px 16px;font-size:15px;font-weight:600;">📝 메모</button>
+      <button onclick="onMemoDraftType('checklist')" class="pill-btn ${s.draftType==='checklist'?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:12px 16px;font-size:15px;font-weight:600;">☑ 체크리스트</button>
     </div>
-    <div style="display:flex;gap:6px;margin-bottom:14px;">
-      <button onclick="${visLocked?'':`onMemoDraftVisibility('public')`}" class="pill-btn ${s.draftVisibility==='public'&&!visLocked?'pill-btn-primary':'pill-btn-outline'}" ${visLocked?'disabled':''} style="flex:1;padding:6px 10px;font-size:12px;${visLocked?'opacity:0.4;cursor:not-allowed;':''}">전체 공유</button>
-      <button onclick="onMemoDraftVisibility('private')" class="pill-btn ${s.draftVisibility==='private'||visLocked?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:6px 10px;font-size:12px;">나만 보기${visLocked?' (체크리스트)':''}</button>
+    <div style="display:flex;gap:8px;margin-bottom:18px;">
+      <button onclick="${visLocked?'':`onMemoDraftVisibility('public')`}" class="pill-btn ${s.draftVisibility==='public'&&!visLocked?'pill-btn-primary':'pill-btn-outline'}" ${visLocked?'disabled':''} style="flex:1;padding:9px 14px;font-size:13px;font-weight:600;${visLocked?'opacity:0.4;cursor:not-allowed;':''}">전체 공유</button>
+      <button onclick="onMemoDraftVisibility('private')" class="pill-btn ${s.draftVisibility==='private'||visLocked?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:9px 14px;font-size:13px;font-weight:600;">나만 보기${visLocked?' (체크리스트 자동)':''}</button>
     </div>
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
       <div>
-        <label class="apple-label">연도</label>
-        <select class="apple-input" onchange="memoWorkspaceState.draftYear=parseInt(this.value);">${yearOpts.join('')}</select>
+        <label class="apple-label" style="font-size:13px;">연도</label>
+        <select class="apple-input" onchange="memoWorkspaceState.draftYear=parseInt(this.value);" style="font-size:14px;">${yearOpts.join('')}</select>
       </div>
       <div>
-        <label class="apple-label">대상 구분</label>
-        <select class="apple-input" onchange="onMemoDraftScopeType(this.value)">
+        <label class="apple-label" style="font-size:13px;">대상 구분</label>
+        <select class="apple-input" onchange="onMemoDraftScopeType(this.value)" style="font-size:14px;">
           <option value="branch"${s.draftScopeType==='branch'?' selected':''}>지점</option>
           <option value="division"${s.draftScopeType==='division'?' selected':''}>실/본부</option>
           <option value="outsourcing"${s.draftScopeType==='outsourcing'?' selected':''}>외주협력</option>
         </select>
       </div>
       <div>
-        <label class="apple-label">대상</label>
-        <select class="apple-input" id="${idPrefix}_station" onchange="memoWorkspaceState.draftStation=this.value;">${_memoStationOptionsHTML(s.draftScopeType, s.draftStation)}</select>
+        <label class="apple-label" style="font-size:13px;">대상</label>
+        <select class="apple-input" id="${idPrefix}_station" onchange="memoWorkspaceState.draftStation=this.value;" style="font-size:14px;">${_memoStationOptionsHTML(s.draftScopeType, s.draftStation)}</select>
       </div>
     </div>
     ${isChecklist
-      ? `<div class="mb-3">
-          <label class="apple-label">사전 확인 항목</label>
-          <div id="${idPrefix}_items">${itemsHTML}</div>
-          <button onclick="onMemoDraftAddItem('${idPrefix}')" class="pill-btn pill-btn-outline" style="font-size:12px;padding:6px 14px;margin-top:4px;">+ 항목 추가</button>
+      ? `<div class="mb-4">
+          <label class="apple-label" style="font-size:13px;">사전 확인 항목</label>
+          <div id="${idPrefix}_items">${itemsHTMLws}</div>
+          <button onclick="onMemoDraftAddItem('${idPrefix}')" class="pill-btn pill-btn-outline" style="font-size:14px;padding:9px 18px;margin-top:6px;">+ 항목 추가</button>
          </div>`
-      : `<div class="mb-3">
-          <label class="apple-label">내용</label>
-          <textarea class="apple-input" rows="5" placeholder="자유 메모 (공유: 공지/인수인계, 나만보기: 개인 메모)" oninput="memoWorkspaceState.draftContent=this.value;" style="resize:vertical;">${_esc(s.draftContent)}</textarea>
+      : `<div class="mb-4">
+          <label class="apple-label" style="font-size:13px;">내용</label>
+          <textarea class="apple-input" rows="6" placeholder="자유롭게 메모하세요 (공유: 공지/인수인계 / 나만 보기: 개인 메모)" oninput="memoWorkspaceState.draftContent=this.value;" style="resize:vertical;font-size:15px;line-height:1.6;padding:14px;">${_esc(s.draftContent)}</textarea>
          </div>`}
-    <div style="display:flex;gap:8px;justify-content:flex-end;">
-      <button onclick="onMemoDraftReset()" class="pill-btn pill-btn-outline" style="font-size:13px;">초기화</button>
-      <button onclick="onMemoDraftSave()" class="pill-btn pill-btn-primary" style="font-size:13px;">저장</button>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="onMemoDraftReset()" class="pill-btn pill-btn-outline" style="font-size:14px;padding:10px 22px;">초기화</button>
+      <button onclick="onMemoDraftSave()" class="pill-btn pill-btn-primary" style="font-size:14px;padding:10px 28px;font-weight:600;">저장</button>
     </div>
   </div>`;
 }
@@ -11970,26 +11983,29 @@ function renderMemoWorkspace() {
     });
   }
 
+  // v19.11.3: 워크스페이스 폰트·여백 일제 향상
   el.innerHTML = `
-    <div class="grid grid-cols-1 md:grid-cols-12 gap-5">
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
       <div class="md:col-span-5">
-        <div style="font-size:13px;font-weight:600;color:#565A5B;margin-bottom:8px;padding-left:4px;">빠른 작성</div>
+        <div style="font-size:14px;font-weight:700;color:#303A3C;margin-bottom:12px;padding-left:2px;letter-spacing:-0.2px;">✏️ 빠른 작성</div>
         ${_draftFormHTML('memoWS')}
       </div>
       <div class="md:col-span-7">
-        <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;">
-          <input type="text" class="apple-input" placeholder="검색" value="${_esc(s.filterSearch)}" oninput="memoWorkspaceState.filterSearch=this.value;clearTimeout(window._memoSearchT);window._memoSearchT=setTimeout(renderMemoWorkspace,200);" style="flex:1 1 180px;font-size:13px;padding:8px 12px;">
-          <select class="apple-input" onchange="memoWorkspaceState.filterYear=this.value;renderMemoWorkspace();" style="font-size:12px;padding:8px 10px;flex:0 0 auto;">${yearFilterOpts}</select>
-          <select class="apple-input" onchange="memoWorkspaceState.filterStation=this.value;renderMemoWorkspace();" style="font-size:12px;padding:8px 10px;flex:0 0 auto;max-width:160px;">${stationFilterOpts}</select>
+        <div style="font-size:14px;font-weight:700;color:#303A3C;margin-bottom:12px;padding-left:2px;letter-spacing:-0.2px;">🗂 메모 보기</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <input type="text" class="apple-input" placeholder="🔍 검색" value="${_esc(s.filterSearch)}" oninput="memoWorkspaceState.filterSearch=this.value;clearTimeout(window._memoSearchT);window._memoSearchT=setTimeout(renderMemoWorkspace,200);" style="flex:1 1 200px;font-size:14px;padding:11px 14px;">
+          <select class="apple-input" onchange="memoWorkspaceState.filterYear=this.value;renderMemoWorkspace();" style="font-size:13px;padding:11px 12px;flex:0 0 auto;">${yearFilterOpts}</select>
+          <select class="apple-input" onchange="memoWorkspaceState.filterStation=this.value;renderMemoWorkspace();" style="font-size:13px;padding:11px 12px;flex:0 0 auto;max-width:180px;">${stationFilterOpts}</select>
         </div>
-        <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">
-          ${['all','note','checklist'].map(t => `<button onclick="memoWorkspaceState.filterType='${t}';renderMemoWorkspace();" class="pill-btn ${s.filterType===t?'pill-btn-primary':'pill-btn-outline'}" style="font-size:12px;padding:5px 12px;">${t==='all'?'전체':t==='note'?'메모':'체크리스트'}</button>`).join('')}
-          ${['all','public','private'].map(v => `<button onclick="memoWorkspaceState.filterVisibility='${v}';renderMemoWorkspace();" class="pill-btn ${s.filterVisibility===v?'pill-btn-primary':'pill-btn-outline'}" style="font-size:12px;padding:5px 12px;">${v==='all'?'전체':v==='public'?'공유':'나만'}</button>`).join('')}
+        <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;">
+          ${['all','note','checklist'].map(t => `<button onclick="memoWorkspaceState.filterType='${t}';renderMemoWorkspace();" class="pill-btn ${s.filterType===t?'pill-btn-primary':'pill-btn-outline'}" style="font-size:13px;padding:7px 16px;font-weight:600;">${t==='all'?'전체':t==='note'?'📝 메모':'☑ 체크리스트'}</button>`).join('')}
+          <span style="border-left:1px solid rgba(192,206,209,0.5);margin:0 2px;"></span>
+          ${['all','public','private'].map(v => `<button onclick="memoWorkspaceState.filterVisibility='${v}';renderMemoWorkspace();" class="pill-btn ${s.filterVisibility===v?'pill-btn-primary':'pill-btn-outline'}" style="font-size:13px;padding:7px 16px;font-weight:600;">${v==='all'?'전체':v==='public'?'공유':'나만 보기'}</button>`).join('')}
         </div>
-        <div style="font-size:13px;color:#9EA2A1;margin-bottom:10px;">${list.length}건</div>
-        <div style="display:flex;flex-direction:column;gap:10px;max-height:70vh;overflow-y:auto;padding-right:4px;">
+        <div style="font-size:14px;color:#9EA2A1;margin-bottom:12px;font-weight:600;">총 ${list.length}건</div>
+        <div style="display:flex;flex-direction:column;gap:12px;max-height:75vh;overflow-y:auto;padding-right:6px;">
           ${list.length === 0
-            ? '<div class="apple-card p-5" style="text-align:center;color:#9EA2A1;font-size:13px;">메모가 없습니다. 좌측에서 작성해보세요.</div>'
+            ? '<div class="apple-card" style="padding:32px;text-align:center;color:#9EA2A1;font-size:15px;">메모가 없습니다.<br><span style="font-size:13px;">좌측에서 작성해보세요</span></div>'
             : list.map(m => _renderMemoCard(m, { showScope: true })).join('')}
         </div>
       </div>
@@ -12097,50 +12113,50 @@ function _renderMemoPanelInner() {
   const myChecklists = memos.filter(m => m.type === 'checklist' && currentUser && m.authorEmpNo === currentUser.empNo);
   const myNotes = memos.filter(m => m.type === 'note' && m.visibility === 'private' && currentUser && m.authorEmpNo === currentUser.empNo);
 
-  // 빠른 작성 폼 (인라인 — 패널 안에서만)
+  // v19.11.3: 빠른 작성 폼 — Notion 스타일, 폰트/패딩 키움
   const qd = _memoQuickDraft;
   const isCl = qd.type === 'checklist';
   const itemsHTML = (qd.items || []).map((it, i) =>
-    `<div style="display:flex;gap:4px;align-items:center;margin-bottom:4px;">
-      <input type="text" class="apple-input" placeholder="항목" value="${_esc(it.text)}" oninput="_memoQuickDraft.items[${i}].text=this.value;" style="flex:1;padding:6px 10px;font-size:12px;">
-      <button onclick="onMemoQuickRemoveItem(${i})" style="background:none;border:none;color:#9EA2A1;font-size:16px;cursor:pointer;padding:0 4px;">×</button>
+    `<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+      <input type="text" class="apple-input" placeholder="확인 항목 입력" value="${_esc(it.text)}" oninput="_memoQuickDraft.items[${i}].text=this.value;" style="flex:1;padding:10px 14px;font-size:14px;">
+      <button onclick="onMemoQuickRemoveItem(${i})" style="background:none;border:none;color:#9EA2A1;font-size:20px;cursor:pointer;padding:4px 8px;border-radius:8px;transition:background 0.15s;" onmouseover="this.style.background='rgba(210,0,21,0.08)';this.style.color='#D20015'" onmouseout="this.style.background='none';this.style.color='#9EA2A1'">×</button>
     </div>`).join('');
 
-  const quickForm = !qd.open ? `<button onclick="onMemoQuickOpen()" class="pill-btn pill-btn-primary" style="width:100%;font-size:12px;padding:8px;margin-bottom:10px;">+ 메모/체크리스트 추가</button>` : `
-    <div class="apple-card" style="padding:12px;margin-bottom:10px;background:#f9fafb;">
-      <div style="display:flex;gap:4px;margin-bottom:8px;">
-        <button onclick="onMemoQuickType('note')" class="pill-btn ${qd.type==='note'?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:5px 8px;font-size:11px;">📝 메모</button>
-        <button onclick="onMemoQuickType('checklist')" class="pill-btn ${qd.type==='checklist'?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:5px 8px;font-size:11px;">☑ 체크</button>
+  const quickForm = !qd.open ? `<button onclick="onMemoQuickOpen()" style="background:none;border:1.5px dashed rgba(210,0,21,0.3);color:#D20015;border-radius:12px;padding:10px 16px;font-size:14px;font-weight:600;cursor:pointer;margin-bottom:18px;display:inline-flex;align-items:center;gap:6px;transition:all 0.15s;" onmouseover="this.style.background='rgba(210,0,21,0.05)';this.style.borderColor='#D20015'" onmouseout="this.style.background='none';this.style.borderColor='rgba(210,0,21,0.3)'">+ 메모/체크리스트 추가</button>` : `
+    <div class="apple-card" style="padding:18px;margin-bottom:18px;background:#fafbfc;border:1px solid rgba(192,206,209,0.4);">
+      <div style="display:flex;gap:6px;margin-bottom:12px;">
+        <button onclick="onMemoQuickType('note')" class="pill-btn ${qd.type==='note'?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:9px 14px;font-size:13px;font-weight:600;">📝 메모</button>
+        <button onclick="onMemoQuickType('checklist')" class="pill-btn ${qd.type==='checklist'?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:9px 14px;font-size:13px;font-weight:600;">☑ 체크리스트</button>
       </div>
-      <div style="display:flex;gap:4px;margin-bottom:8px;">
-        <button onclick="${isCl?'':`onMemoQuickVisibility('public')`}" class="pill-btn ${qd.visibility==='public'&&!isCl?'pill-btn-primary':'pill-btn-outline'}" ${isCl?'disabled':''} style="flex:1;padding:4px 8px;font-size:11px;${isCl?'opacity:0.4;':''}">공유</button>
-        <button onclick="onMemoQuickVisibility('private')" class="pill-btn ${qd.visibility==='private'||isCl?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:4px 8px;font-size:11px;">나만</button>
+      <div style="display:flex;gap:6px;margin-bottom:14px;">
+        <button onclick="${isCl?'':`onMemoQuickVisibility('public')`}" class="pill-btn ${qd.visibility==='public'&&!isCl?'pill-btn-primary':'pill-btn-outline'}" ${isCl?'disabled':''} style="flex:1;padding:7px 12px;font-size:12px;font-weight:600;${isCl?'opacity:0.4;cursor:not-allowed;':''}">전체 공유</button>
+        <button onclick="onMemoQuickVisibility('private')" class="pill-btn ${qd.visibility==='private'||isCl?'pill-btn-primary':'pill-btn-outline'}" style="flex:1;padding:7px 12px;font-size:12px;font-weight:600;">나만 보기</button>
       </div>
       ${isCl
-        ? `<div>${itemsHTML}</div>
-           <button onclick="onMemoQuickAddItem()" class="pill-btn pill-btn-outline" style="font-size:11px;padding:4px 10px;margin-bottom:8px;">+ 항목</button>`
-        : `<textarea class="apple-input" rows="3" placeholder="자유 메모" oninput="_memoQuickDraft.text=this.value;" style="font-size:12px;padding:6px 10px;resize:vertical;margin-bottom:8px;">${_esc(qd.text)}</textarea>`}
-      <div style="display:flex;gap:4px;">
-        <button onclick="onMemoQuickCancel()" class="pill-btn pill-btn-outline" style="flex:1;font-size:11px;padding:5px;">취소</button>
-        <button onclick="onMemoQuickSave()" class="pill-btn pill-btn-primary" style="flex:1;font-size:11px;padding:5px;">저장</button>
+        ? `<div style="margin-bottom:8px;">${itemsHTML}</div>
+           <button onclick="onMemoQuickAddItem()" class="pill-btn pill-btn-outline" style="font-size:13px;padding:7px 14px;margin-bottom:14px;">+ 항목 추가</button>`
+        : `<textarea class="apple-input" rows="4" placeholder="자유롭게 메모하세요" oninput="_memoQuickDraft.text=this.value;" style="font-size:15px;padding:12px 14px;line-height:1.5;resize:vertical;margin-bottom:14px;width:100%;">${_esc(qd.text)}</textarea>`}
+      <div style="display:flex;gap:8px;justify-content:flex-end;">
+        <button onclick="onMemoQuickCancel()" class="pill-btn pill-btn-outline" style="font-size:13px;padding:8px 18px;">취소</button>
+        <button onclick="onMemoQuickSave()" class="pill-btn pill-btn-primary" style="font-size:13px;padding:8px 22px;font-weight:600;">저장</button>
       </div>
     </div>`;
 
   function section(title, color, list, emoji) {
-    let h = `<div style="margin-bottom:14px;">
-      <div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;padding:0 4px;">
-        <span style="font-size:12px;font-weight:700;color:${color};">${emoji} ${title}</span>
-        <span style="font-size:11px;color:#9EA2A1;">${list.length}</span>
+    let h = `<div style="margin-bottom:24px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;padding:0 2px;">
+        <span style="font-size:14px;font-weight:700;color:${color};letter-spacing:-0.2px;">${emoji} ${title}</span>
+        <span style="font-size:12px;color:#9EA2A1;font-weight:600;background:rgba(158,162,161,0.12);padding:1px 8px;border-radius:980px;">${list.length}</span>
       </div>`;
-    if (list.length === 0) h += `<div style="font-size:12px;color:#C0CED1;padding:8px 4px;">없음</div>`;
-    else h += list.map(m => _renderMemoCard(m, { showScope: false })).join('');
+    if (list.length === 0) h += `<div style="font-size:13px;color:#C0CED1;padding:10px 4px;">아직 없습니다</div>`;
+    else h += '<div style="display:flex;flex-direction:column;gap:10px;">' + list.map(m => _renderMemoCard(m, { showScope: false })).join('') + '</div>';
     h += '</div>';
     return h;
   }
 
-  return `<div style="padding:14px;">
-    <div style="font-size:14px;font-weight:700;color:#303A3C;margin-bottom:4px;">${_esc(station)}</div>
-    <div style="font-size:11px;color:#9EA2A1;margin-bottom:10px;">${year}년 메모/체크리스트</div>
+  return `<div style="padding:20px 22px;">
+    <div style="font-size:18px;font-weight:700;color:#1a1c1d;margin-bottom:4px;letter-spacing:-0.3px;">${_esc(station)}</div>
+    <div style="font-size:13px;color:#9EA2A1;margin-bottom:18px;font-weight:500;">${year}년 메모 / 체크리스트</div>
     ${quickForm}
     ${section('공유 메모', '#0067C4', publicNotes, '📢')}
     ${section('내 체크리스트', '#D20015', myChecklists, '☑')}
