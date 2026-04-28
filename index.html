@@ -633,8 +633,9 @@ select.apple-input {
 /* v19.9.9: scale → box-shadow 로 변경 (세로 overflow 방지) */
 @keyframes ddayPulse { 0%,100% { box-shadow: 0 0 0 0 rgba(210,0,21,0); } 50% { box-shadow: 0 0 0 4px rgba(210,0,21,0.18); } }
 .dday-pulse { animation: ddayPulse 1.5s ease-in-out infinite; }
-/* v19.11.6: 카드 자체 클릭 제거 — cursor default, hover 효과 제거 */
-.dday-card { border-radius: 16px; padding: 16px; min-width: 140px; min-height: 180px; cursor: default; transition: box-shadow 0.15s ease; display: flex; flex-direction: column; }
+/* v19.11.7: 카드 자체 클릭은 없지만 hover 애니메이션은 복원 (시각적 피드백만) */
+.dday-card { border-radius: 16px; padding: 16px; min-width: 140px; min-height: 180px; cursor: default; transition: transform 0.15s ease, box-shadow 0.15s ease; display: flex; flex-direction: column; position: relative; }
+.dday-card:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.1) !important; }
 /* v19.9.11: 홈 다가오는 심사 — 완료/다가오는 카드 너비·높이 완전 일치 (고정 height) */
 .home-dday-completed-col { width: 150px !important; }
 .home-dday-completed-col .dday-card,
@@ -1464,7 +1465,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.11.6</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.11.7</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1630,7 +1631,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.11.6',
+  version: '19.11.7',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -10730,24 +10731,24 @@ function renderHomeMySchedule(currentYear) {
     } else { ddayLabel = '일정 미정'; ddayColor = '#9EA2A1'; }
     const bgColor = isComplete ? 'rgba(158,162,161,0.06)' : (item.dday !== null && item.dday <= 7 ? 'rgba(210,0,21,0.04)' : 'rgba(192,206,209,0.08)');
     const dateStr = item.dateStart ? item.dateStart.substring(5).replace('-', '.') + (item.dateEnd ? '~' + item.dateEnd.substring(5).replace('-', '.') : '') : '미정';
-    // v19.11.6: 카드 자체 클릭 제거 — '상세 >', '점검표 작성/보기 >' 링크만 클릭
-    let c = '<div class="dday-card' + extraClass + '" style="background:' + bgColor + ';flex:0 0 auto;min-width:150px;cursor:default;">';
+    // v19.11.7: 완료 카드 점수를 우상단 absolute 배지로 (다가오는 카드와 layout 통일)
+    let c = '<div class="dday-card' + extraClass + '" style="background:' + bgColor + ';flex:0 0 auto;min-width:150px;">';
+    // 우상단 점수 배지 (완료 카드만)
+    if (isComplete && item.avgScore !== null) {
+      c += '<div style="position:absolute;top:12px;right:12px;"><div class="badge-pill" style="' + Scoring.getBadgeStyle(item.avgScore) + 'font-size:11px;font-weight:700;padding:3px 10px;">' + item.avgScore.toFixed(2) + '점</div></div>';
+    }
     c += '<div style="font-size:24px;font-weight:800;color:' + ddayColor + ';letter-spacing:-0.5px;margin-bottom:8px;">' + ddayLabel + '</div>';
     c += '<div style="font-size:15px;font-weight:600;color:#303A3C;margin-bottom:4px;">' + item.station + '</div>';
     c += '<div style="font-size:12px;color:#9EA2A1;margin-bottom:8px;">' + dateStr + '</div>';
-    if (isComplete && item.avgScore !== null) {
-      c += '<div style="margin-top:auto;"><div class="badge-pill" style="' + Scoring.getBadgeStyle(item.avgScore) + 'font-size:12px;font-weight:600;display:inline-block;margin-bottom:8px;">' + item.avgScore.toFixed(2) + '점</div></div>';
-      // v19.11.6: 완료 카드에도 상세/점검표 보기 링크 추가
-      c += '<div style="display:flex;flex-direction:column;gap:6px;">';
-      c += '<div style="font-size:12px;color:#D20015;font-weight:500;cursor:pointer;" onclick="openStationDetail(' + currentYear + ',&apos;' + item.station + '&apos;)">상세 &rsaquo;</div>';
+    // 하단 액션 링크 — 완료/미완료 통일된 디자인
+    c += '<div style="margin-top:auto;display:flex;flex-direction:column;gap:6px;">';
+    c += '<div style="font-size:12px;color:#D20015;font-weight:500;cursor:pointer;" onclick="openStationDetail(' + currentYear + ',&apos;' + item.station + '&apos;)">상세 &rsaquo;</div>';
+    if (isComplete) {
       c += '<div style="font-size:12px;color:#D20015;font-weight:500;cursor:pointer;" onclick="switchTab(2);setTimeout(function(){var y=document.getElementById(\'viewYear\');if(y)y.value=\'' + currentYear + '\';var t=document.getElementById(\'viewTarget\');if(t){t.value=\'' + item.station + '\';if(t._comboRefresh)t._comboRefresh();}if(typeof viewSearch===\'function\')viewSearch();},100);">점검표 보기 &rsaquo;</div>';
-      c += '</div>';
-    } else if (!isComplete) {
-      c += '<div style="margin-top:auto;display:flex;flex-direction:column;gap:6px;">';
-      c += '<div style="font-size:12px;color:#D20015;font-weight:500;cursor:pointer;" onclick="openStationDetail(' + currentYear + ',&apos;' + item.station + '&apos;)">상세 &rsaquo;</div>';
+    } else {
       c += '<div style="font-size:12px;color:#D20015;font-weight:500;cursor:pointer;" onclick="switchTab(1);setTimeout(function(){var y=document.getElementById(\'inputYear\');if(y)y.value=\'' + currentYear + '\';var t=document.getElementById(\'inputTarget\');if(t){t.value=\'' + item.station + '\';if(t._comboRefresh)t._comboRefresh();}if(typeof inputSearch===\'function\')inputSearch();},100);">점검표 작성 &rsaquo;</div>';
-      c += '</div>';
     }
+    c += '</div>';
     c += '</div>';
     return c;
   }
