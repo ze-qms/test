@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- v19.12.7: HTML 캐시 무효화 — iPhone Safari가 이전 버전을 잡지 않도록 -->
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <title>이스타항공 품질관리시스템 포털</title>
 <!-- Favicon + Apple Touch Icon (이스타항공 공식 로고) -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' rx='36' fill='%23D20015'/%3E%3Cpath d='M100 15C101 82 118 99 185 100C118 101 101 118 100 185C99 118 82 101 15 100C82 99 99 82 100 15Z' fill='white'/%3E%3C/svg%3E">
@@ -1465,7 +1469,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.12.5</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.12.9</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1631,7 +1635,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.12.5',
+  version: '19.12.9',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -2903,7 +2907,12 @@ let auditorList = [];
 function loadAuditors() {
   const stored = SafeStorage.get(AUDITOR_STORAGE_KEY, null);
   if (stored) { auditorList = stored; }
-  else { auditorList = JSON.parse(JSON.stringify(PRELOADED_AUDITORS)); saveAuditors(); }
+  else {
+    // v19.12.9: 신규 디바이스 wipe 방지 — PRELOADED 빈 배열을 Firebase로 push하지 않음.
+    // Firebase listener가 실제 데이터를 가져옴 (또는 onLoginSuccess의 명시적 fetch).
+    auditorList = JSON.parse(JSON.stringify(PRELOADED_AUDITORS));
+    SafeStorage.set(AUDITOR_STORAGE_KEY, auditorList); // local만
+  }
 }
 function saveAuditors() {
   SafeStorage.set(AUDITOR_STORAGE_KEY, auditorList);
@@ -3199,6 +3208,10 @@ async function initFirebase() {
       // v19.11.12: 재연결 시 미동기화 메모 자동 retry
       if (!wasConnected && firebaseConnected && currentUser) {
         try { retryUnsyncedMemos(); } catch(e) { console.warn('retryUnsyncedMemos failed:', e); }
+        // v19.12.8: listener가 cancel된 적 있으면(_listenersAttached=false) 재연결 시 재등록 시도
+        if (!_listenersAttached) {
+          try { setupFirebaseListeners(); _listenersAttached = true; } catch(e) { console.warn('listener re-attach failed:', e); }
+        }
       }
     });
 
@@ -3432,6 +3445,9 @@ async function doLogout() {
   document.cookie = 'eastar_session=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
   // v19.12.1: 주기 retry 인터벌 정리
   if (_memoRetryIntervalId) { clearInterval(_memoRetryIntervalId); _memoRetryIntervalId = null; }
+  // v19.12.8: 다른 계정으로 재로그인 시 listener 재등록 + firstSync 토스트/refresh 재발동되도록 상태 초기화
+  _listenersAttached = false;
+  _fbFirstSync = { assessments: false, auditors: false, schedule: false, customStations: false, memos: false };
   try { await firebaseAuth.signOut(); } catch(e) { console.warn(e); }
   currentUser = null;
   showLoginScreen();
@@ -3724,11 +3740,14 @@ function loadSchedule() {
           }
         }
       });
-      saveSchedule();
+      // v19.12.9: 신규 디바이스 wipe 방지 — seed 데이터(AUDIT_SCHEDULE_2026)로 Firebase의 사용자 수정 일정을
+      // 덮어쓰는 사고 차단. local에만 저장하고 Firebase는 listener에 맡김.
+      SafeStorage.set(SCHEDULE_STORAGE_KEY, scheduleData);
     }
   } catch(e) {
     scheduleData = [];
-    saveSchedule();
+    // v19.12.9: 빈 배열 push 차단
+    SafeStorage.set(SCHEDULE_STORAGE_KEY, scheduleData);
   }
   // Normalize auditTarget for existing records that don't have it
   normalizeScheduleTargets();
@@ -4131,14 +4150,17 @@ function loadAllData() {
       allData = JSON.parse(JSON.stringify(PRELOADED_DATA));
     }
     allData = allData.map(normalizeRecord);
-    if (!stored) saveAllData();
-    // 마이그레이션된 데이터 저장
+    // v19.12.9: 신규 디바이스 wipe 방지 — PRELOADED 빈 배열로 saveAllData 호출하면
+    // firebaseSaveAllData가 Firebase 전체 assessments path를 빈 객체로 덮어씀!
+    // local에만 저장하고 Firebase는 listener에 맡김.
+    if (!stored) SafeStorage.set(STORAGE_KEY, allData);
+    // 마이그레이션된 데이터는 실제 데이터 변경이므로 정상 저장 (Firebase 포함)
     if (allData.some(d => d._safetyIdMigrated && !stored?._migrationSaved)) saveAllData();
   } catch (e) {
     console.warn('Data load failed, using defaults:', e);
     allData = JSON.parse(JSON.stringify(PRELOADED_DATA));
     allData = allData.map(normalizeRecord);
-    saveAllData();
+    SafeStorage.set(STORAGE_KEY, allData); // v19.12.9: local만
   }
 }
 
@@ -9955,11 +9977,19 @@ function setupFirebaseListeners() {
     if (isFirst || JSON.stringify(newData) !== JSON.stringify(allData)) {
       allData = newData;
       localStorage.setItem(STORAGE_KEY, JSON.stringify(allData));
-      // v19.12.2: 첫 sync에서도 UI 갱신 (다른 기기에서 캐시 없이 첫 접속 시 화면 비어 보이던 버그)
-      if (currentUser) refreshCurrentView();
+      // v19.12.6: currentUser 가드 제거 — race condition 방지 (memos는 가드 없이 동작했음).
+      // appWrapper가 보이면(=로그인 후) 무조건 refresh.
+      try {
+        const wrap = document.getElementById('appWrapper');
+        if (wrap && wrap.style.display !== 'none') refreshCurrentView();
+      } catch(e) {}
     }
   }, (err) => {
+    // v19.12.8: cancel 시 firstSync 리셋 + listener 재등록 가능 상태로 (memos만 하던 처리 일괄 적용)
     console.warn('assessments listener cancelled:', err && err.code, err && err.message);
+    _fbFirstSync.assessments = false;
+    _listenersAttached = false;
+    try { showToast('심사 데이터 listener 차단: ' + (err && err.code || 'unknown'), 'error'); } catch(e) {}
   });
 
   // Listen for auditors changes — Firebase 우선
@@ -9979,10 +10009,18 @@ function setupFirebaseListeners() {
       localStorage.setItem(AUDITOR_STORAGE_KEY, JSON.stringify(auditorList));
       // v19.12.2: auditor 갱신 시 myAuditorProfile 캐시 무효화 + 홈 D-day(auditor 의존) 재렌더
       window._myAuditorProfile = undefined;
-      if (currentUser) refreshCurrentView();
+      // v19.12.6: currentUser 가드 제거
+      try {
+        const wrap = document.getElementById('appWrapper');
+        if (wrap && wrap.style.display !== 'none') refreshCurrentView();
+      } catch(e) {}
     }
   }, (err) => {
+    // v19.12.8: cancel recovery
     console.warn('auditors listener cancelled:', err && err.code, err && err.message);
+    _fbFirstSync.auditors = false;
+    _listenersAttached = false;
+    try { showToast('심사원 listener 차단: ' + (err && err.code || 'unknown'), 'error'); } catch(e) {}
   });
 
   // Listen for schedule changes — Firebase 우선
@@ -10001,14 +10039,21 @@ function setupFirebaseListeners() {
       scheduleData = newData;
       normalizeScheduleTargets();
       localStorage.setItem(SCHEDULE_STORAGE_KEY, JSON.stringify(scheduleData));
-      // v19.12.2: 일정탭 외(특히 홈)도 schedule 의존 → 첫 sync 포함 항상 refresh
-      if (currentUser) {
-        if (activeTab === 5) renderSchedule();
-        else refreshCurrentView();
-      }
+      // v19.12.6: currentUser 가드 제거
+      try {
+        const wrap = document.getElementById('appWrapper');
+        if (wrap && wrap.style.display !== 'none') {
+          if (activeTab === 5) renderSchedule();
+          else refreshCurrentView();
+        }
+      } catch(e) {}
     }
   }, (err) => {
+    // v19.12.8: cancel recovery
     console.warn('schedule listener cancelled:', err && err.code, err && err.message);
+    _fbFirstSync.schedule = false;
+    _listenersAttached = false;
+    try { showToast('일정 listener 차단: ' + (err && err.code || 'unknown'), 'error'); } catch(e) {}
   });
 
   // Listen for CAR data — Firebase 실시간 동기화
@@ -10037,6 +10082,10 @@ function setupFirebaseListeners() {
       }
       if (updated) SafeStorage.set(CAR_STORAGE_KEY, local);
     }
+  }, (err) => {
+    // v19.12.8: cancel recovery
+    console.warn('CAR listener cancelled:', err && err.code, err && err.message);
+    _listenersAttached = false;
   });
 
   // v19.11.0: Memo 실시간 동기화 — { year: { stationKey: { memoId: memo } } }
@@ -10102,9 +10151,17 @@ function setupFirebaseListeners() {
       customStations = Object.values(data);
       localStorage.setItem(CUSTOM_STATIONS_KEY, JSON.stringify(customStations));
       mergeCustomStations();
-      // v19.12.2: REGIONS 갱신 후 의존 화면(홈·통계 등) 재렌더
-      if (currentUser) refreshCurrentView();
+      // v19.12.6: currentUser 가드 제거
+      try {
+        const wrap = document.getElementById('appWrapper');
+        if (wrap && wrap.style.display !== 'none') refreshCurrentView();
+      } catch(e) {}
     }
+  }, (err) => {
+    // v19.12.8: cancel recovery
+    console.warn('customStations listener cancelled:', err && err.code, err && err.message);
+    _fbFirstSync.customStations = false;
+    _listenersAttached = false;
   });
 }
 
@@ -10143,6 +10200,17 @@ function decodeScoresFromFirebase(scores) {
 
 function firebaseSaveAllData() {
   if (!firebaseDb) return Promise.resolve();
+  // v19.12.9: WIPE 방어 — listener 첫 sync 전엔 절대 set() 금지.
+  // 첫 sync 전엔 Firebase 실제 상태를 모르므로 빈/seed 데이터로 덮어쓸 위험.
+  if (!_fbFirstSync.assessments) {
+    console.warn('firebaseSaveAllData blocked: assessments first sync not done');
+    return Promise.resolve();
+  }
+  // v19.12.9: 빈 배열 push 추가 방어 (사용자가 의도적으로 전체 삭제하지 않는 한 set({}) 차단)
+  if (allData.length === 0) {
+    console.warn('firebaseSaveAllData blocked: allData is empty (use clearAllData() to intentionally wipe)');
+    return Promise.resolve();
+  }
   try {
     const assessmentObj = {};
     allData.forEach(d => {
@@ -10157,6 +10225,15 @@ function firebaseSaveAllData() {
 
 function firebaseSaveAuditors() {
   if (!firebaseDb) return Promise.resolve();
+  // v19.12.9: WIPE 방어
+  if (!_fbFirstSync.auditors) {
+    console.warn('firebaseSaveAuditors blocked: auditors first sync not done');
+    return Promise.resolve();
+  }
+  if (auditorList.length === 0) {
+    console.warn('firebaseSaveAuditors blocked: auditorList is empty');
+    return Promise.resolve();
+  }
   try {
     const obj = {};
     auditorList.forEach((a, i) => {
@@ -10168,6 +10245,15 @@ function firebaseSaveAuditors() {
 
 function firebaseSaveSchedule() {
   if (!firebaseDb) return Promise.resolve();
+  // v19.12.9: WIPE 방어
+  if (!_fbFirstSync.schedule) {
+    console.warn('firebaseSaveSchedule blocked: schedule first sync not done');
+    return Promise.resolve();
+  }
+  if (scheduleData.length === 0) {
+    console.warn('firebaseSaveSchedule blocked: scheduleData is empty');
+    return Promise.resolve();
+  }
   try {
     const obj = {};
     scheduleData.forEach(s => {
