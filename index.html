@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.17.1',
+  version: '19.17.2',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -12060,7 +12060,8 @@ function _dtable(headers, rows){
       const w = c.width?('width:'+c.width+';'):'';
       const cs = c.colspan?(' colspan="'+c.colspan+'"'):'';
       const rs = c.rowspan?(' rowspan="'+c.rowspan+'"'):'';
-      h += '<td'+cs+rs+' style="border:1px solid #000;padding:6px;text-align:'+align+';vertical-align:middle;'+w+bg+bold+'">'+(c.t==null?'':c.t)+'</td>';
+      const va = c.valign || 'middle';
+      h += '<td'+cs+rs+' style="border:1px solid #000;padding:6px;text-align:'+align+';vertical-align:'+va+';'+w+bg+bold+'">'+(c.t==null?'':c.t)+'</td>';
     });
     h += '</tr>';
   });
@@ -12122,19 +12123,48 @@ function _draftChartImages(){
   try {
     const root = document.getElementById('tabStationDetail');
     if (!root) return '';
-    const canvases = Array.from(root.querySelectorAll('canvas'));
-    let imgs = '';
-    canvases.forEach(c => {
+    const datas = [];
+    root.querySelectorAll('canvas').forEach(c => {
       if (!c.width || !c.height) return;
       const style = window.getComputedStyle(c);
       if (style.display === 'none' || style.visibility === 'hidden') return;
       let data;
       try { data = c.toDataURL('image/png'); } catch(e) { return; }
       if (!data || data.length < 3000) return; // 빈 캔버스 제외
-      imgs += '<p style="'+_DP+'text-align:center;"><img src="'+data+'" style="max-width:480px;width:92%;height:auto;margin:6px auto;border:1px solid #ccc;" /></p>';
+      datas.push(data);
     });
-    return imgs;
+    if (!datas.length) return '';
+    // 2개씩 가로 배치 (참고자료 양식과 동일)
+    let h = '<table style="border-collapse:collapse;width:760px;margin:5px auto;"><tbody>';
+    for (let i = 0; i < datas.length; i += 2) {
+      h += '<tr>';
+      for (let j = i; j < i + 2; j++) {
+        if (j < datas.length) h += '<td style="width:50%;text-align:center;padding:4px;vertical-align:top;"><img src="'+datas[j]+'" style="width:100%;max-width:360px;height:auto;" /></td>';
+        else h += '<td style="width:50%;"></td>';
+      }
+      h += '</tr>';
+    }
+    h += '</tbody></table>';
+    return _dempty() + h + _dempty();
   } catch(e) { return ''; }
+}
+
+// 위험평가 매트릭스 (IR/RR Risk Level) — 셀 배경색
+const RISK_COLORS = { red:'#EE3124', orange:'#F7941E', yellow:'#FFD200', green:'#39B54A' };
+const RISK_MATRIX = {
+  '5A':'red','5B':'red','5C':'red','5D':'orange','5E':'yellow',
+  '4A':'red','4B':'red','4C':'orange','4D':'yellow','4E':'green',
+  '3A':'red','3B':'orange','3C':'yellow','3D':'yellow','3E':'green',
+  '2A':'orange','2B':'yellow','2C':'yellow','2D':'green','2E':'green',
+  '1A':'yellow','1B':'yellow','1C':'green','1D':'green','1E':'green'
+};
+function _riskCell(val){
+  const raw = String(val==null?'':val).trim();
+  const key = raw.toUpperCase().replace(/\s+/g,'');
+  const lvl = RISK_MATRIX[key];
+  if (!lvl) return { t: _esc(raw), align:'center' };
+  const fg = (lvl === 'yellow') ? '#333333' : '#ffffff';
+  return { t: '<span style="color:'+fg+';font-weight:bold;">'+_esc(raw)+'</span>', bg: RISK_COLORS[lvl], align:'center' };
 }
 
 // 메인: 지점/실본부 결과보고 기안서 HTML 생성
@@ -12235,15 +12265,15 @@ function buildDraftReportHTML(year, key){
   body += _dp('다. 개선조치요구 및 권고사항', 1, false);
   if (Array.isArray(meta.carIssued) && meta.carIssued.length){
     body += _dp('1) 금번 심사 개선조치(CAR) 발행 사항', 2, false);
-    const rows = meta.carIssued.map((c,i)=> [String(i+1), {t:_esc(c.title||''),align:'left'}, _esc(c.riskClass||''), _esc(c.initialRisk||'')]);
-    body += _dtable([{label:'순번',width:'50px'},{label:'제목'},{label:'발견사실 분류(Risk Level)'},{label:'위험평가(Initial Risk)'}], rows);
+    const rows = meta.carIssued.map((c,i)=> [String(i+1), {t:_esc(c.title||''),align:'left'}, _esc(c.riskClass||''), _riskCell(c.initialRisk)]);
+    body += _dtable([{label:'순번',width:'50px'},{label:'제목'},{label:'발견사실 분류'},{label:'위험평가(Initial Risk)'}], rows);
   } else {
     body += _dp('1) 금번 심사 개선조치(CAR) 발행 사항: '+PH, 2, false);
     body += _dempty();
   }
   if (Array.isArray(meta.carPrevious) && meta.carPrevious.length){
     body += _dp('2) 직전 심사 개선조치(CAR) 이행 현황', 2, false);
-    const rows = meta.carPrevious.map(c=> [_esc(c.date||''), _esc(c.source||''), {t:_esc(c.title||''),align:'left'}, _esc(c.ir||''), _esc(c.rr||''), _esc(c.effectiveness||'')]);
+    const rows = meta.carPrevious.map(c=> [_esc(c.date||''), _esc(c.source||''), {t:_esc(c.title||''),align:'left'}, _riskCell(c.ir), _riskCell(c.rr), _esc(c.effectiveness||'')]);
     body += _dtable([{label:'발행일자'},{label:'출처'},{label:'CAR 제목'},{label:'IR'},{label:'RR'},{label:'효용성 평가'}], rows);
   }
 
@@ -12252,9 +12282,9 @@ function buildDraftReportHTML(year, key){
   const _lines = s => String(s||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
   const cs = _lines(meta.conclusionSafety), cq = _lines(meta.conclusionQuality);
   if (cs.length || cq.length){
-    if (cs.length){ body += _dp('1) 안전(SMS)', 2, false); cs.forEach((l,i)=> body += _dp(_GANADA[i]+'. '+_esc(l), 3, false)); }
-    if (cq.length){ body += _dp('2) 품질(QMS)', 2, false); cq.forEach((l,i)=> body += _dp(_GANADA[i]+'. '+_esc(l), 3, false)); }
-    body += _dempty();
+    // 안전(SMS) | 품질(QMS) 2열 표 (참고자료 양식)
+    const concCell = (lines) => ({ t: lines.map(_esc).join('<br>'), align:'left', valign:'top' });
+    body += _dtable([{label:'안전(SMS)'},{label:'품질(QMS)'}], [[concCell(cs), concCell(cq)]]);
   } else {
     body += _dp(PH, 2, false);
     body += _dempty();
@@ -12460,7 +12490,7 @@ function _gtInit(meta) {
   });
   _gtState = {
     ops: mk(meta && meta.ops, ['구분','항목','현황','비고']),
-    indicators: mk(meta && meta.indicators, ['구분','지표 항목','전년','금년(~월)','비고']),
+    indicators: mk(meta && meta.indicators, ['구분','지표 항목','전년','금년(~월)','경보치','비고']),
     reportActivity: mk(meta && meta.reportActivity, ['항목','전년 실적','금년 실적','비고'])
   };
 }
