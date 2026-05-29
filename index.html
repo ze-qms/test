@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.17.0',
+  version: '19.17.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -12117,6 +12117,26 @@ function _draftShell(titleBig, title, bodyHTML){
     + '</tbody></table></span></div></body></html>';
 }
 
+// 상세 페이지의 차트 canvas → base64 PNG <img> (그룹웨어 붙여넣기용)
+function _draftChartImages(){
+  try {
+    const root = document.getElementById('tabStationDetail');
+    if (!root) return '';
+    const canvases = Array.from(root.querySelectorAll('canvas'));
+    let imgs = '';
+    canvases.forEach(c => {
+      if (!c.width || !c.height) return;
+      const style = window.getComputedStyle(c);
+      if (style.display === 'none' || style.visibility === 'hidden') return;
+      let data;
+      try { data = c.toDataURL('image/png'); } catch(e) { return; }
+      if (!data || data.length < 3000) return; // 빈 캔버스 제외
+      imgs += '<p style="'+_DP+'text-align:center;"><img src="'+data+'" style="max-width:480px;width:92%;height:auto;margin:6px auto;border:1px solid #ccc;" /></p>';
+    });
+    return imgs;
+  } catch(e) { return ''; }
+}
+
 // 메인: 지점/실본부 결과보고 기안서 HTML 생성
 function buildDraftReportHTML(year, key){
   const isDiv = !!(typeof DIVISIONS!=='undefined' && DIVISIONS[key]);
@@ -12206,6 +12226,10 @@ function buildDraftReportHTML(year, key){
     rows.push([{t:'평균 평점',colspan:2,bold:true,bg:'#F2F2F2'}, {t:fmt(sd.branchResult&&sd.branchResult.overallAverage),bg:'#F2F2F2',bold:true}, {t:fmt(sd.paxResult&&sd.paxResult.overallAverage),bg:'#F2F2F2',bold:true}, {t:fmt(sd.rampResult&&sd.rampResult.overallAverage),bg:'#F2F2F2',bold:true}]);
     body += _dtable([{label:'번호',width:'50px'},{label:'항목'},{label:'항공사'},{label:'여객협력사'},{label:'램프협력사'}], rows);
   }
+
+  // 평가 결과 그래프 (상세 페이지 차트 → 이미지)
+  const _charts = _draftChartImages();
+  if (_charts) { body += _dp('※ 평가 결과 그래프', 2, false); body += _dempty() + _charts + _dempty(); }
 
   // 3-다. 개선조치요구 및 권고사항
   body += _dp('다. 개선조치요구 및 권고사항', 1, false);
@@ -15208,6 +15232,9 @@ Object.assign(window, {
   toggleCarEdit, saveCarInputs, loadCarDataFromFirebase,
   // Detail page download (v19.8.0)
   toggleSdDownloadMenu, downloadDetailPDF, downloadDetailHTML, copyDetailHTMLToClipboard,
+  // 전자결재 결과보고 입력 패널 (v19.17.0) — inline onclick/oninput 핸들러
+  saveReportDraft, saveReportDefaultsFromPanel, rdAddCarIssued, rdAddCarPrevious,
+  _gtAddRow, _gtDelRow, _gtAddCol, _gtDelCol, _gtSetHeader, _gtSetCell,
   // Scoring/Utils (for dynamic HTML)
   getTypeLabel, getChecklistName, avgColor, avgBadgeStyle,
   getScheduleStatusLabels, getScheduleStatusBadgeStyle,
