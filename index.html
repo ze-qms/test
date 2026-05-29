@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.17.4',
+  version: '19.17.5',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -11852,6 +11852,11 @@ const CAR_CATEGORIES = [
   '교육 및 훈련/매뉴얼', '조직관리', '안전 및 품질관리',
   '현장관리', '여객 협력업체 관리', '램프 협력업체 관리'
 ];
+// v19.17.5: 실/본부 CAR 카테고리 (지점과 다름 — 참고자료 양식)
+const CAR_CATEGORIES_DIVISION = ['품질관리', '안전관리', '조직관리', '매뉴얼관리'];
+function getCarCategories(key) {
+  return (typeof DIVISIONS !== 'undefined' && DIVISIONS[key]) ? CAR_CATEGORIES_DIVISION : CAR_CATEGORIES;
+}
 
 // --- Navigation ---
 function openStationDetail(year, station, _fromPopstate) {
@@ -12809,7 +12814,7 @@ function loadCarData(year, station) {
   const key = year + '_' + station;
   if (!all[key]) {
     const empty = {};
-    CAR_CATEGORIES.forEach(c => empty[c] = 0);
+    getCarCategories(station).forEach(c => empty[c] = 0);
     return { current: { ...empty }, previous: { ...empty } };
   }
   return all[key];
@@ -14314,7 +14319,7 @@ function toggleCarEdit() {
     // 입력 폼 채우기
     const carData = loadCarData(stationDetailYear, stationDetailStation);
     let rows = '';
-    CAR_CATEGORIES.forEach(cat => {
+    getCarCategories(stationDetailStation).forEach(cat => {
       rows += `<tr style="border-bottom:1px solid rgba(192,206,209,0.3);">
         <td style="padding:8px 6px;color:#303A3C;">${cat}</td>
         <td style="padding:8px 6px;text-align:center;"><input type="number" min="0" class="apple-input" style="width:60px;text-align:center;padding:6px;" value="${carData.previous[cat] || 0}" data-car-cat="${cat}" data-car-period="previous"></td>
@@ -15031,13 +15036,14 @@ function renderSDCarChart(carData) {
   ChartUtil.destroy('sdCarChart');
   const ctx = document.getElementById('sdCarChart');
   if (!ctx) return;
-  const prevData = CAR_CATEGORIES.map(c => carData.previous?.[c] || 0);
-  const currData = CAR_CATEGORIES.map(c => carData.current?.[c] || 0);
+  const cats = getCarCategories(stationDetailStation);
+  const prevData = cats.map(c => carData.previous?.[c] || 0);
+  const currData = cats.map(c => carData.current?.[c] || 0);
   const maxVal = Math.max(...prevData, ...currData, 3);
   chartInstances['sdCarChart'] = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: CAR_CATEGORIES,
+      labels: cats,
       datasets: [
         { label: '금번심사', data: currData, backgroundColor: '#D20015', borderRadius: 3, barPercentage: 0.85, categoryPercentage: 0.7,
           datalabels: { display: (ctx) => ctx.dataset.data[ctx.dataIndex] > 0, color: '#1a1c1d', font: { size: 12, weight: '700' }, anchor: 'end', align: 'right', offset: 4, formatter: (v) => v + '건' } },
