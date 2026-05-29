@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.17.2',
+  version: '19.17.3',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -12230,24 +12230,36 @@ function buildDraftReportHTML(year, key){
     const pct = v => (v==null||isNaN(v))?'-':(v.toFixed(1)+'%');
     const diff = (cur,prev)=> (cur==null||prev==null||isNaN(cur)||isNaN(prev))?'-':(((cur-prev)>=0?'+':'')+(cur-prev).toFixed(1)+'%');
     body += _dp('1) 종합 결과 (적합률: '+pct(dd.overallRate)+')', 2, false);
+    const _charts = _draftChartImages();   // 참고자료: 종합 결과 아래에 그래프
+    if (_charts) body += _charts;
     body += _dp('2) 점검표 항목별 적합률', 2, false);
-    const rows = [];
-    rows.push([{t:'품질심사',bold:true}, dd.qaTotalS!=null?dd.qaTotalS+'건':'-', dd.qaTotalU!=null?dd.qaTotalU+'건':'-', pct(dd.qaRate), diff(dd.qaRate, dd.prevQaRate)]);
-    if (dd.safetyResult) rows.push([{t:'안전감사',bold:true}, dd.safetyResult.yesCount+'건', dd.safetyResult.noCount+'건', pct(dd.safetyResult.complianceRate), diff(dd.safetyResult.complianceRate, dd.prevSafetyRate)]);
-    if (dd.fsdsResult) rows.push([{t:'FSDS',bold:true}, dd.fsdsResult.yesCount+'건', dd.fsdsResult.noCount+'건', pct(dd.fsdsResult.complianceRate), diff(dd.fsdsResult.complianceRate, dd.prevFsdsRate)]);
-    rows.push([{t:'종합',bold:true,bg:'#F2F2F2'}, {t:(dd.totalS!=null?dd.totalS+'건':'-'),bg:'#F2F2F2',bold:true}, {t:(dd.totalU!=null?dd.totalU+'건':'-'),bg:'#F2F2F2',bold:true}, {t:pct(dd.overallRate),bg:'#F2F2F2',bold:true}, {t:diff(dd.overallRate, dd.prevOverallRate),bg:'#F2F2F2',bold:true}]);
-    body += _dtable([{label:'점검표',width:'150px'},{label:'적합'},{label:'부적합(U)'},{label:'적합률'},{label:'전년 대비'}], rows);
-    // 부적합(U) 항목
+    // 부적합(U) 항목을 표 안의 한 열로 통합 (Finding 빨강 / Observation 파랑)
     const nci = dd.nonCompliantItems || [];
-    if (nci.length){
-      body += _dp('3) 부적합(U) 항목', 2, false);
-      nci.forEach(it=> body += _dp('- ['+_esc(it.id)+'] '+_esc(it.text)+' ('+_esc(it.group)+')', 3, false));
-      body += _dempty();
-    }
+    const colorFO = t => _esc(t)
+      .replace(/\(Finding\)/g, '<span style="color:#D20015;">(Finding)</span>')
+      .replace(/\(Observation\)/g, '<span style="color:#1D6FB8;">(Observation)</span>');
+    const nciCell = grp => {
+      const its = nci.filter(x => x.group === grp);
+      if (!its.length) return { t:'-', align:'center' };
+      return { t: its.map(it => colorFO((it.id ? it.id+') ' : '') + (it.text||'') + (it.remark ? ' '+it.remark : ''))).join('<br>'), align:'left', valign:'top' };
+    };
+    const rows = [];
+    rows.push([{t:'품질심사',bold:true}, (dd.qaTotalS!=null?dd.qaTotalS+'건':'-'), nciCell('품질심사'), pct(dd.qaRate), diff(dd.qaRate, dd.prevQaRate)]);
+    if (dd.safetyResult) rows.push([{t:'안전감사',bold:true}, dd.safetyResult.yesCount+'건', nciCell('안전감사'), pct(dd.safetyResult.complianceRate), diff(dd.safetyResult.complianceRate, dd.prevSafetyRate)]);
+    if (dd.fsdsResult) rows.push([{t:'FSDS',bold:true}, dd.fsdsResult.yesCount+'건', nciCell('FSDS'), pct(dd.fsdsResult.complianceRate), diff(dd.fsdsResult.complianceRate, dd.prevFsdsRate)]);
+    rows.push([{t:'종합',bold:true,bg:'#F2F2F2'}, {t:(dd.totalS!=null?dd.totalS+'건':'-'),bg:'#F2F2F2',bold:true}, {t:(dd.totalU!=null?dd.totalU+'건':''),bg:'#F2F2F2',bold:true}, {t:pct(dd.overallRate),bg:'#F2F2F2',bold:true}, {t:diff(dd.overallRate, dd.prevOverallRate),bg:'#F2F2F2',bold:true}]);
+    body += _dtable([{label:'점검표',width:'90px'},{label:'적합',width:'60px'},{label:'부적합(U)'},{label:'적합률',width:'72px'},{label:'전년 대비',width:'72px'}], rows);
+    // Finding / Observation 분류 기준
+    body += _dp('※ Finding 및 Observation 분류 기준', 2, false);
+    body += _dp('가) Finding: 점검표 항목 내 미이행 및 불충족하여 개선조치요구서(CAR) 발행 연계 항목', 3, false);
+    body += _dp('나) Observation: 점검표 항목 내 일부 이행 중이거나 모니터링 필요 항목', 3, false);
+    body += _dempty();
   } else {
     const sd = gatherStationData(year, key) || {};
     const fmt = v => (v==null||v===0)?'-':v.toFixed(2);
     body += _dp('1) 종합 결과 (총점: '+(sd.currentOverall!=null?sd.currentOverall.toFixed(2):'-')+'/4)', 2, false);
+    const _charts = _draftChartImages();   // 참고자료: 종합 결과 아래에 그래프
+    if (_charts) body += _charts;
     body += _dp('2) 분야별 성숙도 평점', 2, false);
     const cats = [];
     [sd.branchResult, sd.paxResult, sd.rampResult].forEach(r=>{ if(r&&r.categoryAverages) Object.keys(r.categoryAverages).forEach(c=>{ if(!cats.includes(c)) cats.push(c); }); });
@@ -12256,10 +12268,6 @@ function buildDraftReportHTML(year, key){
     rows.push([{t:'평균 평점',colspan:2,bold:true,bg:'#F2F2F2'}, {t:fmt(sd.branchResult&&sd.branchResult.overallAverage),bg:'#F2F2F2',bold:true}, {t:fmt(sd.paxResult&&sd.paxResult.overallAverage),bg:'#F2F2F2',bold:true}, {t:fmt(sd.rampResult&&sd.rampResult.overallAverage),bg:'#F2F2F2',bold:true}]);
     body += _dtable([{label:'번호',width:'50px'},{label:'항목'},{label:'항공사'},{label:'여객협력사'},{label:'램프협력사'}], rows);
   }
-
-  // 평가 결과 그래프 (상세 페이지 차트 → 이미지)
-  const _charts = _draftChartImages();
-  if (_charts) { body += _dp('※ 평가 결과 그래프', 2, false); body += _dempty() + _charts + _dempty(); }
 
   // 3-다. 개선조치요구 및 권고사항
   body += _dp('다. 개선조치요구 및 권고사항', 1, false);
