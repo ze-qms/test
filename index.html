@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.17.3',
+  version: '19.17.4',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -12124,8 +12124,10 @@ function _draftChartImages(){
     const root = document.getElementById('tabStationDetail');
     if (!root) return '';
     const datas = [];
-    root.querySelectorAll('canvas').forEach(c => {
-      if (!c.width || !c.height) return;
+    // 팀 양식: 적합률(sdBarChart) + 개선조치(CAR, sdCarChart) 2개만 (DOM 순서 = 적합률 → CAR)
+    ['sdBarChart', 'sdCarChart'].forEach(id => {
+      const c = document.getElementById(id);
+      if (!c || !c.width || !c.height) return;
       const style = window.getComputedStyle(c);
       if (style.display === 'none' || style.visibility === 'hidden') return;
       let data;
@@ -12235,13 +12237,20 @@ function buildDraftReportHTML(year, key){
     body += _dp('2) 점검표 항목별 적합률', 2, false);
     // 부적합(U) 항목을 표 안의 한 열로 통합 (Finding 빨강 / Observation 파랑)
     const nci = dd.nonCompliantItems || [];
+    const nciSummary = meta.nciSummary || {};
     const colorFO = t => _esc(t)
       .replace(/\(Finding\)/g, '<span style="color:#D20015;">(Finding)</span>')
       .replace(/\(Observation\)/g, '<span style="color:#1D6FB8;">(Observation)</span>');
     const nciCell = grp => {
       const its = nci.filter(x => x.group === grp);
       if (!its.length) return { t:'-', align:'center' };
-      return { t: its.map(it => colorFO((it.id ? it.id+') ' : '') + (it.text||'') + (it.remark ? ' '+it.remark : ''))).join('<br>'), align:'left', valign:'top' };
+      return { t: its.map(it => {
+        const k = (it.group+'|'+it.id).replace(/[.#$\[\]\/]/g,'_');
+        const s = nciSummary[k] || {};
+        const summary = (s.summary && s.summary.trim()) ? s.summary.trim() : (it.text || '');
+        const fo = s.fo ? ' ('+s.fo+')' : '';
+        return colorFO((it.id ? it.id+') ' : '') + summary + fo);
+      }).join('<br>'), align:'left', valign:'top' };
     };
     const rows = [];
     rows.push([{t:'품질심사',bold:true}, (dd.qaTotalS!=null?dd.qaTotalS+'건':'-'), nciCell('품질심사'), pct(dd.qaRate), diff(dd.qaRate, dd.prevQaRate)]);
@@ -12404,6 +12413,31 @@ function _reportPanelHTML(year, key){
     + '</div></div>'
   ) : '';
 
+  // 부적합(U) 항목 정리 — 실본부: U 항목 자동 나열 → 짧은 요약 + Finding/Observation 분류
+  let nciSection = '';
+  if (isDiv) {
+    const dd0 = gatherDivisionData(year, key) || {};
+    const nciItems = dd0.nonCompliantItems || [];
+    if (nciItems.length) {
+      const sumMap = meta.nciSummary || {};
+      let rows = '';
+      nciItems.forEach(it => {
+        const k = (it.group+'|'+it.id).replace(/[.#$\[\]\/]/g,'_');
+        const saved = sumMap[k] || {};
+        const sumVal = saved.summary != null ? saved.summary : (it.remark || '');
+        const foVal = saved.fo || '';
+        const tShort = (it.text||'').length > 55 ? (it.text||'').slice(0,55)+'…' : (it.text||'');
+        rows += '<tr>'
+          + '<td style="padding:4px;vertical-align:top;width:40%;"><div style="font-size:11px;color:#9EA2A1;">['+_esc(it.group)+'] '+_esc(it.id)+'</div><div style="font-size:12px;color:#565A5B;">'+_esc(tShort)+'</div></td>'
+          + '<td style="padding:4px;vertical-align:top;"><input data-nci-key="'+k+'" data-nci-f="summary" value="'+_rdAttr(sumVal)+'" placeholder="짧은 요약 (예: 조업계약 안전·품질 관련)" style="'+_RD_INP+'"></td>'
+          + '<td style="padding:4px;vertical-align:top;width:118px;"><select data-nci-key="'+k+'" data-nci-f="fo" style="'+_RD_INP+'"><option value="">분류</option><option value="Finding"'+(foVal==='Finding'?' selected':'')+'>Finding</option><option value="Observation"'+(foVal==='Observation'?' selected':'')+'>Observation</option></select></td>'
+          + '</tr>';
+      });
+      nciSection = '<div style="'+lbl+'">부적합(U) 항목 정리 <span style="'+hint+'">(요약·분류 → 점검표 적합률 표에 반영)</span></div>'
+        + '<div class="overflow-x-auto"><table style="width:100%;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #C0CED1;"><th style="text-align:left;padding:4px;font-size:12px;color:#565A5B;">점검표 항목</th><th style="text-align:left;padding:4px;font-size:12px;color:#565A5B;">요약</th><th style="padding:4px;font-size:12px;color:#565A5B;">분류</th></tr></thead><tbody id="rdNciRows">'+rows+'</tbody></table></div>';
+    }
+  }
+
   return '<div class="apple-card p-6" id="sdReportPanel" style="margin-top:24px;">'
     + '<div onclick="toggleSection(\'rdBody\')" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">'
     +   '<h3 style="font-size:15px;font-weight:600;color:#303A3C;margin:0;">전자결재 결과보고 작성 <span style="'+hint+'">(다운로드 시 양식에 반영)</span></h3>'
@@ -12419,6 +12453,7 @@ function _reportPanelHTML(year, key){
     +   '<textarea id="rdConcSafety" placeholder="줄마다 한 항목씩 입력" style="'+ta+'">'+_esc(meta.conclusionSafety||'')+'</textarea>'
     +   '<div style="'+lbl+'">심사 결론 — 품질(QMS) <span style="'+hint+'">(줄바꿈 = 가./나./… 항목)</span></div>'
     +   '<textarea id="rdConcQuality" placeholder="줄마다 한 항목씩 입력" style="'+ta+'">'+_esc(meta.conclusionQuality||'')+'</textarea>'
+    +   nciSection
     +   '<div style="'+lbl+'">금번 심사 CAR 발행 사항</div>'
     +   '<div class="overflow-x-auto"><table style="width:100%;font-size:13px;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #C0CED1;">'
     +     '<th style="text-align:left;padding:6px;font-weight:600;color:#565A5B;">제목</th><th style="padding:6px;font-weight:600;color:#565A5B;">분류</th><th style="padding:6px;font-weight:600;color:#565A5B;">위험평가</th><th></th>'
@@ -12479,6 +12514,19 @@ function saveReportDraft(){
   ['titleOverride','auditScope','conclusionSafety','conclusionQuality'].forEach(k => { if (!data[k]) delete data[k]; });
   if (!carIssued.length) delete data.carIssued;
   if (!carPrevious.length) delete data.carPrevious;
+  // 부적합(U) 항목 정리 수집
+  const nciSummary = {};
+  document.querySelectorAll('#rdNciRows tr').forEach(tr => {
+    const sumInp = tr.querySelector('[data-nci-f=summary]');
+    if (!sumInp) return;
+    const k = sumInp.getAttribute('data-nci-key');
+    const summary = sumInp.value.trim();
+    const foSel = tr.querySelector('[data-nci-f=fo]');
+    const fo = foSel ? foSel.value : '';
+    if (summary || fo) nciSummary[k] = { summary, fo };
+  });
+  if (Object.keys(nciSummary).length) data.nciSummary = nciSummary; else delete data.nciSummary;
+
   // 범용 표(운영현황·지표·보고활동) 수집
   const ops = _gtCollect('ops'), indicators = _gtCollect('indicators'), reportActivity = _gtCollect('reportActivity');
   if (ops) data.ops = ops; else delete data.ops;
@@ -14574,18 +14622,23 @@ function renderDivisionDetail(year, division) {
     '<div class="apple-card" style="padding:16px;text-align:center;"><div style="font-size:12px;color:#9EA2A1;">안전감사</div><div style="font-size:28px;font-weight:600;letter-spacing:-0.28px;' + rateStyle(safetyRate) + '">' + fmtRate(safetyRate) + '</div><div style="font-size:11px;color:#9EA2A1;">' + (d.safetyResult ? 'S:' + d.safetyResult.yesCount + ' U:' + d.safetyResult.noCount : '-') + '</div>' + deltaHtml(safetyRate, d.prevSafetyRate) + '</div>' +
     '<div class="apple-card" style="padding:16px;text-align:center;"><div style="font-size:12px;color:#9EA2A1;">FSDS</div><div style="font-size:28px;font-weight:600;letter-spacing:-0.28px;' + rateStyle(fsdsRate) + '">' + fmtRate(fsdsRate) + '</div><div style="font-size:11px;color:#9EA2A1;">' + (d.fsdsResult ? 'S:' + d.fsdsResult.yesCount + ' U:' + d.fsdsResult.noCount : '-') + '</div>' + deltaHtml(fsdsRate, d.prevFsdsRate) + '</div>';
 
-  // 차트 영역 동적 구성
+  // 차트 영역 동적 구성 — v19.17.4: 팀 양식대로 적합률 + 개선조치(CAR) 2개만
   const chartArea = document.getElementById('sdChartGrid');
   if (chartArea) {
-    // 카테고리 바 높이: 항목 수 기반 동적 계산
-    let catBarItems = 0;
-    for (const [type, result] of Object.entries(d.qaResults)) { catBarItems += Object.keys(result.categoryResults).length; }
-    const catBarHeight = Math.max(280, catBarItems * 28 + 40);
     chartArea.innerHTML =
       '<div class="apple-card" style="padding:16px;"><h3 style="font-size:15px;font-weight:600;color:#303A3C;margin-bottom:16px;">점검표별 적합률</h3><div style="height:280px;"><canvas id="sdBarChart"></canvas></div></div>' +
-      '<div class="apple-card" style="padding:16px;"><h3 style="font-size:15px;font-weight:600;color:#303A3C;margin-bottom:16px;">카테고리별 적합률</h3><div style="height:' + catBarHeight + 'px;"><canvas id="sdCarChart"></canvas></div></div>' +
-      '<div class="apple-card" style="padding:16px;"><h3 style="font-size:15px;font-weight:600;color:#303A3C;margin-bottom:16px;">S/U/NA 분포</h3><div style="display:flex;flex-direction:column;align-items:center;"><div style="position:relative;width:100%;max-width:380px;height:380px;"><canvas id="sdDoughnutChart"></canvas></div><div id="sdDoughnutLegend" style="margin-top:12px;"></div></div></div>' +
-      '<div class="apple-card" style="padding:16px;"><h3 style="font-size:15px;font-weight:600;color:#303A3C;margin-bottom:16px;">안전감사 영역별</h3><div style="position:relative;height:280px;"><canvas id="sdRadarChart"></canvas></div><div id="sdRadarLegend" style="margin-top:8px;"></div></div>';
+      '<div class="apple-card" style="padding:16px;">' +
+        '<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">' +
+          '<h3 style="font-size:15px;font-weight:600;color:#303A3C;margin:0;">개선조치요구서 현황</h3>' +
+          '<button id="sdCarEditBtn" onclick="toggleCarEdit()" style="background:none;border:1px solid #C0CED1;cursor:pointer;padding:4px 10px;border-radius:8px;color:#565A5B;font-size:12px;" title="CAR 건수 편집">✎ 편집</button>' +
+        '</div>' +
+        '<div id="sdCarChartArea" style="position:relative;height:320px;"><canvas id="sdCarChart"></canvas></div>' +
+        '<div id="sdCarEditArea" class="hidden">' +
+          '<div style="font-size:12px;color:#9EA2A1;margin-bottom:12px;">각 분야별 개선조치요구서(CAR) 건수를 입력하세요</div>' +
+          '<div class="overflow-x-auto"><table style="width:100%;font-size:13px;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #C0CED1;"><th style="text-align:left;padding:8px 6px;font-weight:600;color:#565A5B;">항목</th><th style="text-align:center;padding:8px 6px;font-weight:600;color:#565A5B;width:80px;">직전심사</th><th style="text-align:center;padding:8px 6px;font-weight:600;color:#D20015;width:80px;">금번심사</th></tr></thead><tbody id="sdCarInputRows"></tbody></table></div>' +
+          '<div class="flex gap-2 mt-4"><button onclick="saveCarInputs()" class="pill-btn pill-btn-primary" style="font-size:13px;padding:8px 20px;">저장</button><button onclick="toggleCarEdit()" class="pill-btn pill-btn-outline" style="font-size:13px;padding:8px 20px;">취소</button></div>' +
+        '</div>' +
+      '</div>';
   }
 
   // 실/본부: 제목 숨김 (sdCategoryTable 안에 자체 헤딩 생성)
@@ -14594,12 +14647,8 @@ function renderDivisionDetail(year, division) {
 
   // 차트 1: 점검표별 적합률 (Bar + Line)
   renderDivBarChart(d);
-  // 차트 2: 카테고리별 적합률 (Horizontal Bar)
-  renderDivCategoryBar(d);
-  // 차트 3: S/U/NA 분포 (Doughnut)
-  renderDivDoughnutChart(d);
-  // 차트 4: 안전감사 Radar
-  renderDivRadarChart(d);
+  // 차트 2: 개선조치요구서(CAR) 현황 — 지점과 동일 메커니즘 재사용 (CAR_CATEGORIES, year_실본부명 키)
+  renderSDCarChart(loadCarData(year, division));
 
   // 부적합 항목 목록 + 카테고리 테이블
   const tableArea = document.getElementById('sdCategoryTable');
