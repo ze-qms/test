@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.17.6',
+  version: '19.17.7',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -12129,10 +12129,9 @@ function _draftChartImages(){
     const root = document.getElementById('tabStationDetail');
     if (!root) return '';
     const datas = [];
-    // 팀 양식: 적합률(sdBarChart) + 개선조치(CAR, sdCarChart) 2개만 (DOM 순서 = 적합률 → CAR)
-    ['sdBarChart', 'sdCarChart'].forEach(id => {
-      const c = document.getElementById(id);
-      if (!c || !c.width || !c.height) return;
+    // 상세 페이지의 보이는 차트 전부 캡처 (DOM 순서). 실본부=2개(적합률·CAR), 지점=4개(성숙도·CAR·레이더·도넛)
+    root.querySelectorAll('canvas').forEach(c => {
+      if (!c.width || !c.height) return;
       const style = window.getComputedStyle(c);
       if (style.display === 'none' || style.visibility === 'hidden') return;
       let data;
