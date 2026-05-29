@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.17.5',
+  version: '19.17.6',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -12203,9 +12203,9 @@ function buildDraftReportHTML(year, key){
   body += _dp('가. '+_esc(bp.auditPurpose), 1, false);
   body += _dempty();
 
-  // 3. 심사 결과
+  // 3. 심사 개요(실본부) / 심사 결과(지점)
   sec++;
-  body += _dp(sec+'. 심사 결과', 0, true);
+  body += _dp(sec+'. '+(isDiv?'심사 개요':'심사 결과'), 0, true);
 
   // 3-가. 일반 사항
   body += _dp('가. 일반 사항', 1, false);
@@ -12217,10 +12217,9 @@ function buildDraftReportHTML(year, key){
   } else {
     const sd = gatherStationData(year, key) || {};
     auditorStr = sd.auditor||'-'; dStart=sd.dateStart||''; dEnd=sd.dateEnd||'';
-    if (sd.paxCompany || sd.rampCompany){
-      const co = [sd.paxCompany, sd.rampCompany].filter((v,i,a)=>v && a.indexOf(v)===i).join(', ');
-      if (co) scopeTarget = _esc(key)+' / '+_esc(co);
-    }
+    // 지점 심사대상: "1. 지점명 / 2. 조업사" 번호 형식
+    const co = [sd.paxCompany, sd.rampCompany].filter((v,i,a)=>v && a.indexOf(v)===i).join(', ');
+    scopeTarget = '1. '+_esc(key) + (co ? '<br>2. '+_esc(co) : '');
   }
   const dateCell = (dStart && dEnd && dEnd!==dStart) ? (_kdate(dStart)+' ~ '+_kdate(dEnd)) : (_kdate(dStart) || PH);
   body += _dtable(null, [
@@ -12230,8 +12229,8 @@ function buildDraftReportHTML(year, key){
     [{t:'심사원',bg:'#DDDDDD',bold:true}, {t:_esc(auditorStr),align:'left'}]
   ]);
 
-  // 3-나. 평가 결과
-  body += _dp('나. 평가 결과', 1, false);
+  // 3-나. 평가 결과(실본부) / 성숙도 평가 결과(지점)
+  body += _dp('나. '+(isDiv?'평가 결과':'성숙도 평가 결과'), 1, false);
   if (isDiv){
     const dd = gatherDivisionData(year, key) || {};
     const pct = v => (v==null||isNaN(v))?'-':(v.toFixed(1)+'%');
@@ -12283,52 +12282,94 @@ function buildDraftReportHTML(year, key){
     body += _dtable([{label:'번호',width:'50px'},{label:'항목'},{label:'항공사'},{label:'여객협력사'},{label:'램프협력사'}], rows);
   }
 
-  // 3-다. 개선조치요구 및 권고사항
-  body += _dp('다. 개선조치요구 및 권고사항', 1, false);
-  if (Array.isArray(meta.carIssued) && meta.carIssued.length){
-    body += _dp('1) 금번 심사 개선조치(CAR) 발행 사항', 2, false);
-    const rows = meta.carIssued.map((c,i)=> [String(i+1), {t:_esc(c.title||''),align:'left'}, _esc(c.riskClass||''), _riskCell(c.initialRisk)]);
-    body += _dtable([{label:'순번',width:'50px'},{label:'제목'},{label:'발견사실 분류'},{label:'위험평가(Initial Risk)'}], rows);
-  } else {
-    body += _dp('1) 금번 심사 개선조치(CAR) 발행 사항: '+PH, 2, false);
-    body += _dempty();
-  }
-  if (Array.isArray(meta.carPrevious) && meta.carPrevious.length){
-    body += _dp('2) 직전 심사 개선조치(CAR) 이행 현황', 2, false);
-    const rows = meta.carPrevious.map(c=> [_esc(c.date||''), _esc(c.source||''), {t:_esc(c.title||''),align:'left'}, _riskCell(c.ir), _riskCell(c.rr), _esc(c.effectiveness||'')]);
-    body += _dtable([{label:'발행일자'},{label:'출처'},{label:'CAR 제목'},{label:'IR'},{label:'RR'},{label:'효용성 평가'}], rows);
-  }
-
-  // 3-라. 심사 결론
-  body += _dp('라. 심사 결론', 1, false);
-  const _lines = s => String(s||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);
-  const cs = _lines(meta.conclusionSafety), cq = _lines(meta.conclusionQuality);
-  if (cs.length || cq.length){
-    // 안전(SMS) | 품질(QMS) 2열 표 (참고자료 양식)
-    const concCell = (lines) => ({ t: lines.map(_esc).join('<br>'), align:'left', valign:'top' });
-    body += _dtable([{label:'안전(SMS)'},{label:'품질(QMS)'}], [[concCell(cs), concCell(cq)]]);
-  } else {
-    body += _dp(PH, 2, false);
-    body += _dempty();
-  }
-
-  // 4. 운영 및 안전 활동 현황
+  // 범용 표 헬퍼 (운영/지표/보고/업무분장)
   const _gtbl = (t) => {
     if (!t || !Array.isArray(t.rows) || !t.rows.length) return null;
     const headers = Array.isArray(t.headers) ? t.headers.map(h=>({label:_esc(h)})) : null;
     const rows = t.rows.map(r => (Array.isArray(r)?r:[]).map(c=>({t:_esc(c==null?'':c), align:'left'})));
     return _dtable(headers, rows);
   };
+  const CAR_HDR = [{label:'순번',width:'50px'},{label:'제목'},{label:'발견사실 분류 (Risk Level)'},{label:'위험평가 (Initial Risk)'}];
+  const carNote = '※ 통합안전관리시스템(ESMS) 內 개선조치 요구사항(CAR) 상세내용 필수 확인, 개선조치계획(CAP) 및 개선조치결과(CAI) 조치 기한 준수';
+
+  // 개선조치요구 및 권고사항 — 실본부: 1)직전 이행 2)금번 발행(flat) / 지점: 대상별 금번 발행만
+  const carSection = (label) => {
+    let s = _dp(label+' 개선조치요구 및 권고사항', 1, false);
+    s += _dp(carNote, 2, false);
+    const issuedTbl = (its) => _dtable(CAR_HDR, its.map((c,i)=> [String(i+1), {t:_esc(c.title||''),align:'left'}, _esc(c.riskClass||''), _riskCell(c.initialRisk)]));
+    if (isDiv) {
+      if (Array.isArray(meta.carPrevious) && meta.carPrevious.length) {
+        s += _dp('1) 직전 심사 개선조치(CAR) 이행 현황', 2, false);
+        const rows = meta.carPrevious.map(c=> [_esc(c.date||''), _esc(c.source||''), {t:_esc(c.title||''),align:'left'}, _riskCell(c.ir), _riskCell(c.rr), _esc(c.effectiveness||'')]);
+        s += _dtable([{label:'발행일자'},{label:'출처'},{label:'CAR 제목'},{label:'IR'},{label:'RR'},{label:'효용성 평가'}], rows);
+      } else {
+        s += _dp('1) 직전 심사 개선조치(CAR) 이행 현황: '+PH, 2, false) + _dempty();
+      }
+      if (Array.isArray(meta.carIssued) && meta.carIssued.length) {
+        s += _dp('2) 금번 심사 개선조치(CAR) 발행 사항', 2, false);
+        s += issuedTbl(meta.carIssued);
+      } else {
+        s += _dp('2) 금번 심사 개선조치(CAR) 발행 사항: '+PH, 2, false) + _dempty();
+      }
+    } else {
+      const issued = Array.isArray(meta.carIssued) ? meta.carIssued : [];
+      if (issued.length) {
+        const targets = ['항공사','여객협력사','램프협력사'];
+        let n = 0;
+        targets.forEach(tg => {
+          const its = issued.filter(c => (c.target||'항공사') === tg);
+          if (!its.length) return;
+          n++;
+          s += _dp(n+') '+tg, 2, false);
+          s += issuedTbl(its);
+        });
+      } else {
+        s += _dp(PH, 2, false) + _dempty();
+      }
+    }
+    return s;
+  };
+
+  // 심사 결론 — 안전(SMS) | 품질(QMS) 2열 표
+  const conclusionSection = (label) => {
+    let s = _dp(label+' 심사 결론', 1, false);
+    const _lines = x => String(x||'').split(/\r?\n/).map(y=>y.trim()).filter(Boolean);
+    const cs = _lines(meta.conclusionSafety), cq = _lines(meta.conclusionQuality);
+    if (cs.length || cq.length) {
+      const concCell = (lines) => ({ t: lines.map(_esc).join('<br>'), align:'left', valign:'top' });
+      s += _dtable([{label:'안전(SMS)'},{label:'품질(QMS)'}], [[concCell(cs), concCell(cq)]]);
+    } else {
+      s += _dp(PH, 2, false) + _dempty();
+    }
+    return s;
+  };
+
+  // 3-다 / 3-라 순서: 실본부=다.개선조치 라.결론 / 지점=다.결론 라.개선조치
+  if (isDiv) {
+    body += carSection('다.');
+    body += conclusionSection('라.');
+  } else {
+    body += conclusionSection('다.');
+    body += carSection('라.');
+  }
+
+  // 4. 운영 및 안전 활동 현황
   sec++;
   body += _dp(sec+'. '+(isDiv?'본부':'지점')+' 운영 및 안전 활동 현황', 0, true);
-  body += _dp('가. 운영 현황', 1, false);
+  body += _dp('가. '+(isDiv?'본부':'지점')+' 운영 현황', 1, false);
   const opsT = _gtbl(meta.ops);
   body += opsT ? opsT : (_dp(PH, 2, false) + _dempty());
-  body += _dp('나. 안전 및 품질 보증 활동 현황', 1, false);
+  if (!isDiv) {
+    body += _dp('나. 업무 분장 현황', 1, false);
+    const stT = _gtbl(meta.staffing);
+    body += stT ? stT : (_dp(PH, 2, false) + _dempty());
+  }
+  body += _dp((isDiv?'나.':'다.')+' 안전 및 품질 보증 활동 현황', 1, false);
   const indT = _gtbl(meta.indicators), actT = _gtbl(meta.reportActivity);
+  const actLabel = isDiv ? '안전 증진 활동 현황' : '안전 보고 활동 현황';
   if (indT || actT) {
     if (indT) { body += _dp('1) 지표 발생 현황', 2, false); body += indT; }
-    if (actT) { body += _dp('2) 안전 증진 활동 현황', 2, false); body += actT; }
+    if (actT) { body += _dp('2) '+actLabel, 2, false); body += actT; }
   } else {
     body += _dp(PH, 2, false) + _dempty();
   }
@@ -12355,9 +12396,13 @@ function _rdSelectOptions(sel){
 }
 const _RD_INP = 'width:100%;box-sizing:border-box;padding:6px 8px;border:1px solid #C0CED1;border-radius:6px;font-size:13px;';
 
+let _rdIsDiv = false; // 현재 작성 패널이 실본부(true)/지점(false)인지
+const _RD_CAR_TARGETS = ['항공사','여객협력사','램프협력사'];
 function _rdCarIssuedRowHTML(r){
   r = r || {};
+  const tgtCell = _rdIsDiv ? '' : ('<td style="padding:3px;width:96px;"><select data-f="target" style="'+_RD_INP+'">'+_RD_CAR_TARGETS.map(t=>'<option value="'+t+'"'+((r.target||'항공사')===t?' selected':'')+'>'+t+'</option>').join('')+'</select></td>');
   return '<tr>'
+    + tgtCell
     + '<td style="padding:3px;"><input data-f="title" value="'+_rdAttr(r.title)+'" placeholder="CAR 제목" style="'+_RD_INP+'"></td>'
     + '<td style="padding:3px;width:110px;"><select data-f="riskClass" style="'+_RD_INP+'">'+_rdSelectOptions(r.riskClass)+'</select></td>'
     + '<td style="padding:3px;width:80px;"><input data-f="initialRisk" value="'+_rdAttr(r.initialRisk)+'" placeholder="3D" style="'+_RD_INP+'text-align:center;"></td>'
@@ -12378,6 +12423,7 @@ function rdAddCarPrevious(){ const tb=document.getElementById('rdCarPrevRows'); 
 
 function _reportPanelHTML(year, key){
   const isDiv = !!(typeof DIVISIONS!=='undefined' && DIVISIONS[key]);
+  _rdIsDiv = isDiv;
   const meta = loadReportMeta(year, key);
   const canEdit = hasRole('auditor');
   const isAdmin = hasRole('admin');
@@ -12459,21 +12505,24 @@ function _reportPanelHTML(year, key){
     +   '<div style="'+lbl+'">심사 결론 — 품질(QMS) <span style="'+hint+'">(줄바꿈 = 가./나./… 항목)</span></div>'
     +   '<textarea id="rdConcQuality" placeholder="줄마다 한 항목씩 입력" style="'+ta+'">'+_esc(meta.conclusionQuality||'')+'</textarea>'
     +   nciSection
-    +   '<div style="'+lbl+'">금번 심사 CAR 발행 사항</div>'
+    +   '<div style="'+lbl+'">금번 심사 CAR 발행 사항'+(isDiv?'':' <span style="'+hint+'">(대상별: 항공사/여객/램프)</span>')+'</div>'
     +   '<div class="overflow-x-auto"><table style="width:100%;font-size:13px;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #C0CED1;">'
-    +     '<th style="text-align:left;padding:6px;font-weight:600;color:#565A5B;">제목</th><th style="padding:6px;font-weight:600;color:#565A5B;">분류</th><th style="padding:6px;font-weight:600;color:#565A5B;">위험평가</th><th></th>'
+    +     (isDiv?'':'<th style="padding:6px;font-weight:600;color:#565A5B;">대상</th>')+'<th style="text-align:left;padding:6px;font-weight:600;color:#565A5B;">제목</th><th style="padding:6px;font-weight:600;color:#565A5B;">분류</th><th style="padding:6px;font-weight:600;color:#565A5B;">위험평가</th><th></th>'
     +   '</tr></thead><tbody id="rdCarIssuedRows">'+issuedRows+'</tbody></table></div>'
     +   '<button type="button" onclick="rdAddCarIssued()" class="pill-btn pill-btn-outline" style="font-size:12px;padding:5px 14px;margin-top:8px;">+ 행 추가</button>'
-    +   '<div style="'+lbl+'">직전 심사 CAR 이행 현황 <span style="'+hint+'">(선택)</span></div>'
-    +   '<div class="overflow-x-auto"><table style="width:100%;font-size:13px;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #C0CED1;">'
-    +     '<th style="padding:6px;font-weight:600;color:#565A5B;">발행일</th><th style="padding:6px;font-weight:600;color:#565A5B;">출처</th><th style="text-align:left;padding:6px;font-weight:600;color:#565A5B;">제목</th><th style="padding:6px;font-weight:600;color:#565A5B;">IR</th><th style="padding:6px;font-weight:600;color:#565A5B;">RR</th><th style="padding:6px;font-weight:600;color:#565A5B;">효용성</th><th></th>'
-    +   '</tr></thead><tbody id="rdCarPrevRows">'+prevRows+'</tbody></table></div>'
-    +   '<button type="button" onclick="rdAddCarPrevious()" class="pill-btn pill-btn-outline" style="font-size:12px;padding:5px 14px;margin-top:8px;">+ 행 추가</button>'
-    +   '<div style="'+lbl+'">운영 현황 <span style="'+hint+'">(행·열 자유 편집)</span></div>'
+    +   (isDiv ? (
+          '<div style="'+lbl+'">직전 심사 CAR 이행 현황 <span style="'+hint+'">(실본부)</span></div>'
+        + '<div class="overflow-x-auto"><table style="width:100%;font-size:13px;border-collapse:collapse;"><thead><tr style="border-bottom:1px solid #C0CED1;">'
+        +   '<th style="padding:6px;font-weight:600;color:#565A5B;">발행일</th><th style="padding:6px;font-weight:600;color:#565A5B;">출처</th><th style="text-align:left;padding:6px;font-weight:600;color:#565A5B;">제목</th><th style="padding:6px;font-weight:600;color:#565A5B;">IR</th><th style="padding:6px;font-weight:600;color:#565A5B;">RR</th><th style="padding:6px;font-weight:600;color:#565A5B;">효용성</th><th></th>'
+        + '</tr></thead><tbody id="rdCarPrevRows">'+prevRows+'</tbody></table></div>'
+        + '<button type="button" onclick="rdAddCarPrevious()" class="pill-btn pill-btn-outline" style="font-size:12px;padding:5px 14px;margin-top:8px;">+ 행 추가</button>'
+      ) : '')
+    +   '<div style="'+lbl+'">'+(isDiv?'본부':'지점')+' 운영 현황 <span style="'+hint+'">(행·열 자유 편집)</span></div>'
     +   '<div id="gt_ops">'+_gtRender('ops')+'</div>'
+    +   (isDiv ? '' : ('<div style="'+lbl+'">업무 분장 현황</div><div id="gt_staffing">'+_gtRender('staffing')+'</div>'))
     +   '<div style="'+lbl+'">지표 발생 현황</div>'
     +   '<div id="gt_indicators">'+_gtRender('indicators')+'</div>'
-    +   '<div style="'+lbl+'">안전 증진 활동 현황</div>'
+    +   '<div style="'+lbl+'">'+(isDiv?'안전 증진 활동 현황':'안전 보고 활동 현황')+'</div>'
     +   '<div id="gt_reportActivity">'+_gtRender('reportActivity')+'</div>'
     +   '<div style="margin-top:18px;display:flex;gap:8px;">'
     +     '<button type="button" onclick="saveReportDraft()" class="pill-btn pill-btn-primary" style="font-size:13px;padding:8px 24px;">저장</button>'
@@ -12494,11 +12543,16 @@ function saveReportDraft(){
   if (!requireRole('auditor')) return;
   const year = stationDetailYear, key = stationDetailStation;
   const g = id => document.getElementById(id);
-  const carIssued = Array.from(document.querySelectorAll('#rdCarIssuedRows tr')).map(tr => ({
-    title: tr.querySelector('[data-f=title]').value.trim(),
-    riskClass: tr.querySelector('[data-f=riskClass]').value,
-    initialRisk: tr.querySelector('[data-f=initialRisk]').value.trim()
-  })).filter(r => r.title);
+  const carIssued = Array.from(document.querySelectorAll('#rdCarIssuedRows tr')).map(tr => {
+    const o = {
+      title: tr.querySelector('[data-f=title]').value.trim(),
+      riskClass: tr.querySelector('[data-f=riskClass]').value,
+      initialRisk: tr.querySelector('[data-f=initialRisk]').value.trim()
+    };
+    const tEl = tr.querySelector('[data-f=target]');
+    if (tEl) o.target = tEl.value;   // 지점: 대상(항공사/여객/램프)
+    return o;
+  }).filter(r => r.title);
   const carPrevious = Array.from(document.querySelectorAll('#rdCarPrevRows tr')).map(tr => ({
     date: tr.querySelector('[data-f=date]').value.trim(),
     source: tr.querySelector('[data-f=source]').value.trim(),
@@ -12532,11 +12586,12 @@ function saveReportDraft(){
   });
   if (Object.keys(nciSummary).length) data.nciSummary = nciSummary; else delete data.nciSummary;
 
-  // 범용 표(운영현황·지표·보고활동) 수집
-  const ops = _gtCollect('ops'), indicators = _gtCollect('indicators'), reportActivity = _gtCollect('reportActivity');
+  // 범용 표(운영현황·업무분장·지표·보고활동) 수집
+  const ops = _gtCollect('ops'), indicators = _gtCollect('indicators'), reportActivity = _gtCollect('reportActivity'), staffing = _gtCollect('staffing');
   if (ops) data.ops = ops; else delete data.ops;
   if (indicators) data.indicators = indicators; else delete data.indicators;
   if (reportActivity) data.reportActivity = reportActivity; else delete data.reportActivity;
+  if (staffing) data.staffing = staffing; else delete data.staffing;
   saveReportMeta(year, key, data);
   showToast('결과보고 입력 저장 완료', 'success');
 }
@@ -12552,7 +12607,8 @@ function _gtInit(meta) {
   _gtState = {
     ops: mk(meta && meta.ops, ['구분','항목','현황','비고']),
     indicators: mk(meta && meta.indicators, ['구분','지표 항목','전년','금년(~월)','경보치','비고']),
-    reportActivity: mk(meta && meta.reportActivity, ['항목','전년 실적','금년 실적','비고'])
+    reportActivity: mk(meta && meta.reportActivity, ['항목','전년 실적','금년 실적','비고']),
+    staffing: mk(meta && meta.staffing, ['성명','직위','담당(정)','담당(부)','전체 관여','주요 담당 업무'])
   };
 }
 function _gtRender(sec) {
@@ -12878,7 +12934,7 @@ function loadCarDataFromFirebase() {
 // =============================================================================
 const REPORTMETA_STORAGE_KEY = 'eastar_' + APP_ENV + '_reportmeta';
 const _RM_ARRAY_FIELDS = ['carIssued','carPrevious','relBasis','note'];   // 단순 배열 필드
-const _RM_TABLE_FIELDS = ['ops','indicators','reportActivity'];           // {headers:[], rows:[[]]} 표 필드
+const _RM_TABLE_FIELDS = ['ops','indicators','reportActivity','staffing']; // {headers:[], rows:[[]]} 표 필드
 
 function loadReportMetaAll() { return SafeStorage.get(REPORTMETA_STORAGE_KEY, {}); }
 
