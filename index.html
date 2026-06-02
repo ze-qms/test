@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.17.7',
+  version: '19.18.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -12123,29 +12123,39 @@ function _draftShell(titleBig, title, bodyHTML){
     + '</tbody></table></span></div></body></html>';
 }
 
-// 상세 페이지의 차트 canvas → base64 PNG <img> (그룹웨어 붙여넣기용)
+// 상세 페이지 차트 카드(제목+차트+점수표/범례) → 이미지 캐시 (html2canvas, async)
+// canvas만 캡처하면 카드 제목·하단 점수표/범례가 빠지므로 카드 전체를 캡처한다.
+let _draftChartCache = [];
+async function _captureChartCards(){
+  _draftChartCache = [];
+  try {
+    if (typeof html2canvas === 'undefined') return;
+    const grid = document.getElementById('sdChartGrid');
+    if (!grid) return;
+    // 차트 카드 = sdChartGrid 직계 자식 중 canvas를 포함한 카드 (DOM 순서)
+    const cards = Array.from(grid.children).filter(el => el.querySelector && el.querySelector('canvas'));
+    for (const card of cards) {
+      const st = window.getComputedStyle(card);
+      if (st.display === 'none' || st.visibility === 'hidden') continue;
+      try {
+        const cv = await html2canvas(card, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
+        const d = cv.toDataURL('image/png');
+        if (d && d.length > 3000) _draftChartCache.push(d);
+      } catch(e) { /* 개별 카드 실패 시 건너뜀 */ }
+    }
+  } catch(e) {}
+}
+// 캐시된 카드 이미지를 2개씩 가로 배치로 반환 (실본부=2개, 지점=4개)
 function _draftChartImages(){
   try {
-    const root = document.getElementById('tabStationDetail');
-    if (!root) return '';
-    const datas = [];
-    // 상세 페이지의 보이는 차트 전부 캡처 (DOM 순서). 실본부=2개(적합률·CAR), 지점=4개(성숙도·CAR·레이더·도넛)
-    root.querySelectorAll('canvas').forEach(c => {
-      if (!c.width || !c.height) return;
-      const style = window.getComputedStyle(c);
-      if (style.display === 'none' || style.visibility === 'hidden') return;
-      let data;
-      try { data = c.toDataURL('image/png'); } catch(e) { return; }
-      if (!data || data.length < 3000) return; // 빈 캔버스 제외
-      datas.push(data);
-    });
+    const datas = _draftChartCache || [];
     if (!datas.length) return '';
-    // 2개씩 가로 배치 (참고자료 양식과 동일)
-    let h = '<table style="border-collapse:collapse;width:760px;margin:5px auto;"><tbody>';
+    // 2개씩 가로 배치 — 셀 폭(50%)을 가득 채워 정렬 유지하며 조금 더 크게
+    let h = '<table style="border-collapse:collapse;width:100%;margin:5px auto;"><tbody>';
     for (let i = 0; i < datas.length; i += 2) {
       h += '<tr>';
       for (let j = i; j < i + 2; j++) {
-        if (j < datas.length) h += '<td style="width:50%;text-align:center;padding:4px;vertical-align:top;"><img src="'+datas[j]+'" style="width:100%;max-width:360px;height:auto;" /></td>';
+        if (j < datas.length) h += '<td style="width:50%;text-align:center;padding:2px;vertical-align:top;"><img src="'+datas[j]+'" style="width:100%;height:auto;" /></td>';
         else h += '<td style="width:50%;"></td>';
       }
       h += '</tr>';
@@ -12787,10 +12797,12 @@ function buildExportHTML() {
   return clone.outerHTML;
 }
 
-function downloadDetailHTML() {
+async function downloadDetailHTML() {
   const menu = document.getElementById('sdDownloadMenu');
   if (menu) menu.classList.remove('open');
   try {
+    _sdToast('양식 생성 중…');
+    await _captureChartCards();   // 차트 카드(제목+그래프+점수표) 이미지화
     const html = buildDraftReportHTML(stationDetailYear, stationDetailStation);
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -12809,6 +12821,8 @@ async function copyDetailHTMLToClipboard() {
   const menu = document.getElementById('sdDownloadMenu');
   if (menu) menu.classList.remove('open');
   try {
+    _sdToast('양식 생성 중…');
+    await _captureChartCards();   // 차트 카드(제목+그래프+점수표) 이미지화
     const html = buildDraftReportHTML(stationDetailYear, stationDetailStation);
     const text = (document.getElementById('sdTitle')?.textContent || '') + '\n' + (document.getElementById('sdSubtitle')?.textContent || '');
     if (navigator.clipboard && window.ClipboardItem) {
@@ -14733,9 +14747,13 @@ function renderDivisionDetail(year, division) {
       html += '<div class="apple-card" style="padding:20px;margin-bottom:16px;text-align:center;"><div style="color:#22C55E;font-weight:600;font-size:15px;">부적합 항목 없음</div><div style="font-size:13px;color:#9EA2A1;margin-top:4px;">전 항목 적합 판정</div></div>';
     }
 
-    // 카테고리별 상세 테이블
+    // 카테고리별 상세 테이블 — 접기/펼치기 (기본 접힘)
     html += '<div class="apple-card" style="padding:20px;">';
-    html += '<h3 style="font-size:15px;font-weight:600;color:#303A3C;margin-bottom:12px;">카테고리별 상세 적합률</h3>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleSection(\'sdCatDetail\')">';
+    html += '<h3 style="font-size:15px;font-weight:600;color:#303A3C;margin:0;">카테고리별 상세 적합률</h3>';
+    html += '<span id="sdCatDetailArrow" style="color:#9EA2A1;font-size:14px;">▸</span>';
+    html += '</div>';
+    html += '<div id="sdCatDetail" class="hidden" style="margin-top:12px;">';
     html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
     html += '<thead><tr style="background:#f9f9fb;border-bottom:2px solid #C0CED1;"><th style="text-align:left;padding:8px;">카테고리</th><th style="text-align:center;padding:8px;">적합률</th><th style="text-align:center;padding:8px;">S</th><th style="text-align:center;padding:8px;">U</th><th style="text-align:center;padding:8px;">NA</th></tr></thead><tbody>';
 
@@ -14765,7 +14783,8 @@ function renderDivisionDetail(year, division) {
     html += renderCatRows('안전감사', d.safetyResult);
     html += renderCatRows('FSDS', d.fsdsResult);
 
-    html += '</tbody></table></div>';
+    html += '</tbody></table>';
+    html += '</div></div>';
     tableArea.innerHTML = html;
   }
 }
@@ -14775,24 +14794,33 @@ function renderDivBarChart(d) {
   ChartUtil.destroy('sdBarChart');
   const ctx = document.getElementById('sdBarChart');
   if (!ctx) return;
-  const labels = ['품질심사', '안전감사', 'FSDS'];
-  const currData = [d.qaRate || 0, d.safetyResult?.complianceRate || 0, d.fsdsResult?.complianceRate || 0];
+  // v19.18.0: 직전을 꺾은선→막대로 변경(금번·직전 그룹 막대 비교) + 맨 앞 '총 평균' 막대 추가
+  const avgOf = (arr) => {
+    const nums = arr.filter(v => typeof v === 'number');
+    return nums.length ? nums.reduce((a, b) => a + b, 0) / nums.length : 0;
+  };
+  const labels = ['총 평균', '품질심사', '안전감사', 'FSDS'];
+  const currQa = d.qaRate || 0, currSm = d.safetyResult?.complianceRate || 0, currFs = d.fsdsResult?.complianceRate || 0;
+  const currAvg = avgOf([d.qaRate, d.safetyResult?.complianceRate, d.fsdsResult?.complianceRate]);
+  const currData = [currAvg, currQa, currSm, currFs];
+  const dlOpts = { display: true, color: '#1a1c1d', font: { size: 13, weight: '700' }, anchor: 'end', align: 'top', offset: 2, formatter: (v) => v ? v.toFixed(1) + '%' : '' };
   const datasets = [];
+  // 금번(빨강) 막대 — 좌측
+  datasets.push({
+    label: "금번('" + String(d.year).slice(-2) + ")", data: currData,
+    backgroundColor: '#D20015', borderRadius: 4, barPercentage: 0.9, categoryPercentage: 0.7, order: 1,
+    datalabels: dlOpts
+  });
+  // 직전(회색) 막대 — 우측 (직전 데이터 있을 때만)
   if (d.prevYear !== null) {
+    const prevAvg = avgOf([d.prevQaRate, d.prevSafetyRate, d.prevFsdsRate]);
+    const prevData = [prevAvg, d.prevQaRate || 0, d.prevSafetyRate || 0, d.prevFsdsRate || 0];
     datasets.push({
-      type: 'line', label: '직전(' + d.prevYear + ')',
-      data: [d.prevQaRate || 0, d.prevSafetyRate || 0, d.prevFsdsRate || 0],
-      borderColor: '#565A5B', backgroundColor: 'rgba(86,90,91,0.15)', borderWidth: 2, borderDash: [5, 3],
-      pointBackgroundColor: '#565A5B', pointBorderColor: '#fff', pointBorderWidth: 2, pointRadius: 5, fill: false, tension: 0.3, order: 0,
-      // v19.15.1: 직전 라벨을 막대 안쪽 아래로 이동 (금번 라벨과 위치 충돌 방지)
-      datalabels: { display: true, color: '#fff', font: { size: 11, weight: '700' }, anchor: 'center', align: 'bottom', offset: 8, formatter: (v) => v ? v.toFixed(1) + '%' : '' }
+      label: "직전('" + String(d.prevYear).slice(-2) + ")", data: prevData,
+      backgroundColor: '#9EA2A1', borderRadius: 4, barPercentage: 0.9, categoryPercentage: 0.7, order: 1,
+      datalabels: dlOpts
     });
   }
-  datasets.push({
-    label: '금번(' + d.year + ')', data: currData,
-    backgroundColor: ['#D20015', '#3B82F6', '#22C55E'], borderRadius: 4, barPercentage: 0.75, categoryPercentage: 0.75, order: 1,
-    datalabels: { display: true, color: '#1a1c1d', font: { size: 14, weight: '700' }, anchor: 'end', align: 'top', offset: 2, formatter: (v) => v ? v.toFixed(1) + '%' : '' }
-  });
   chartInstances['sdBarChart'] = new Chart(ctx, {
     type: 'bar', data: { labels, datasets },
     options: {
