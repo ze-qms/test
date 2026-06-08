@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.19.2',
+  version: '19.19.3',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -9028,7 +9028,7 @@ function renderSchedule() {
   for (let m = 1; m <= 12; m++) {
     const items = monthMap[m] || [];
     const isCurrentMonth = (m === currentMonth && scheduleYear === currentYear);
-    const topBorder = (m === 1) ? '' : `border-top:2px solid ${isCurrentMonth ? 'rgba(210,0,21,0.4)' : '#CBD1D2'};`;
+    const topBorder = (m === 1) ? '' : `border-top:1px solid ${isCurrentMonth ? 'rgba(210,0,21,0.35)' : '#D7DBDC'};`;
     const rowBg = isCurrentMonth ? 'background:rgba(210,0,21,0.05);' : '';
     const monthCellStyle = `text-align:center;font-weight:700;font-size:15px;vertical-align:middle;${topBorder}${isCurrentMonth?'color:#D20015;background:rgba(210,0,21,0.1);':'background:rgba(48,58,60,0.06);'}`;
     if (items.length === 0) {
