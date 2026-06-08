@@ -1665,7 +1665,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.19.1',
+  version: '19.19.2',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -9028,10 +9028,9 @@ function renderSchedule() {
   for (let m = 1; m <= 12; m++) {
     const items = monthMap[m] || [];
     const isCurrentMonth = (m === currentMonth && scheduleYear === currentYear);
-    const isAltMonth = (m % 2 === 0);
     const topBorder = (m === 1) ? '' : `border-top:2px solid ${isCurrentMonth ? 'rgba(210,0,21,0.4)' : '#CBD1D2'};`;
-    const rowBg = isCurrentMonth ? 'background:rgba(210,0,21,0.05);' : (isAltMonth ? 'background:rgba(48,58,60,0.05);' : '');
-    const monthCellStyle = `text-align:center;font-weight:700;font-size:15px;vertical-align:middle;${topBorder}${isCurrentMonth?'color:#D20015;background:rgba(210,0,21,0.1);':(isAltMonth?'background:rgba(48,58,60,0.1);':'background:rgba(48,58,60,0.05);')}`;
+    const rowBg = isCurrentMonth ? 'background:rgba(210,0,21,0.05);' : '';
+    const monthCellStyle = `text-align:center;font-weight:700;font-size:15px;vertical-align:middle;${topBorder}${isCurrentMonth?'color:#D20015;background:rgba(210,0,21,0.1);':'background:rgba(48,58,60,0.06);'}`;
     if (items.length === 0) {
       html += `<tr style="${rowBg}"><td data-label="월" style="${monthCellStyle}">${m}월</td><td data-label="대상" style="${topBorder}color:#C0CED1;">-</td><td data-label="심사원" style="${topBorder}color:#C0CED1;">-</td><td data-label="심사 기간" style="${topBorder}text-align:center;color:#C0CED1;">-</td><td data-label="상태" style="${topBorder}text-align:center;color:#C0CED1;">-</td></tr>`;
     } else {
