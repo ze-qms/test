@@ -1691,7 +1691,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.23.4',
+  version: '19.24.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -5322,15 +5322,23 @@ function toggleCategoryNA(catIdx, checked, mode) {
 }
 
 function setBinaryScore(itemId, value, btn, catIdx) {
-  currentScores[itemId] = value;
   unsavedChanges = true;
   const row = btn.parentElement;
+  // v19.24.0: 같은 값 재클릭 시 선택 취소(미입력으로)
+  const toggleOff = (currentScores[itemId] === value);
   row.querySelectorAll('.score-btn').forEach(b => {
     b.classList.remove('selected');
     b.style.background = '';
     b.style.color = '';
     b.style.borderColor = '';
   });
+  if (toggleOff) {
+    delete currentScores[itemId];
+    updateCategoryScore(catIdx);
+    updateTotalDisplay();
+    return;
+  }
+  currentScores[itemId] = value;
   btn.classList.add('selected');
   if (value === 'S') { btn.style.background = '#22C55E'; btn.style.color = '#fff'; btn.style.borderColor = '#22C55E'; }
   else if (value === 'U') { btn.style.background = '#D20015'; btn.style.color = '#fff'; btn.style.borderColor = '#D20015'; }
@@ -5345,14 +5353,22 @@ function setRemark(itemId, value) {
 }
 
 function setScore(itemId, value, btn, catIdx) {
-  currentScores[itemId] = value;
   unsavedChanges = true;
   const row = btn.parentElement;
+  // v19.24.0: 같은 값 재클릭 시 선택 취소(미입력으로)
+  const toggleOff = (currentScores[itemId] === value);
   row.querySelectorAll('.score-btn').forEach(b => {
     b.classList.remove('selected');
     b.style.background = '';
     b.style.color = '';
   });
+  if (toggleOff) {
+    delete currentScores[itemId];
+    updateCategoryScore(catIdx);
+    updateTotalDisplay();
+    return;
+  }
+  currentScores[itemId] = value;
   btn.classList.add('selected');
   if (SCORE_COLORS[value]) {
     btn.style.background = SCORE_COLORS[value];
@@ -5539,8 +5555,11 @@ function saveAssessment() {
   }
 
   showToast('저장되었습니다.', 'success');
+  // v19.24.0: 저장 후 점검표 선택 화면(Phase 2)으로 전환 — 저장 완료를 시각적으로 확인
+  renderTypeStatusCards();
   inputShowTypes();
   renderInputPendingStations();
+  setInputPhase(2);
 }
 
 // ============================================================================
