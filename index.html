@@ -1138,12 +1138,29 @@ select.apple-input {
       <p class="section-subtitle mt-1">성숙도 점검 통합 현황</p>
       <div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px;">
         <select id="statsYear" class="apple-input" style="width:auto;min-width:92px;padding-top:7px;padding-bottom:7px;" onchange="renderStatsDashboard()"></select>
-        <div id="statsPeriodSegment" style="display:inline-flex;background:#f9f9fb;border-radius:980px;padding:3px;">
-          <button data-pmode="year" onclick="switchStatsPeriod('year')" style="border:none;border-radius:980px;padding:6px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;letter-spacing:-0.224px;background:#D20015;color:#fff;">년</button>
-          <button data-pmode="quarter" onclick="switchStatsPeriod('quarter')" style="border:none;border-radius:980px;padding:6px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;letter-spacing:-0.224px;background:transparent;color:#565A5B;">분기</button>
-          <button data-pmode="month" onclick="switchStatsPeriod('month')" style="border:none;border-radius:980px;padding:6px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;letter-spacing:-0.224px;background:transparent;color:#565A5B;">월</button>
-        </div>
-        <select id="statsPeriodValue" class="apple-input" style="width:auto;min-width:84px;padding-top:7px;padding-bottom:7px;display:none;" onchange="onStatsPeriodValueChange()"></select>
+        <select id="statsPeriodSel" class="apple-input" style="width:auto;min-width:110px;padding-top:7px;padding-bottom:7px;" onchange="onStatsPeriodSelChange()">
+          <option value="year" selected>연간 전체</option>
+          <optgroup label="분기">
+            <option value="q1">1분기</option>
+            <option value="q2">2분기</option>
+            <option value="q3">3분기</option>
+            <option value="q4">4분기</option>
+          </optgroup>
+          <optgroup label="월별">
+            <option value="m1">1월</option>
+            <option value="m2">2월</option>
+            <option value="m3">3월</option>
+            <option value="m4">4월</option>
+            <option value="m5">5월</option>
+            <option value="m6">6월</option>
+            <option value="m7">7월</option>
+            <option value="m8">8월</option>
+            <option value="m9">9월</option>
+            <option value="m10">10월</option>
+            <option value="m11">11월</option>
+            <option value="m12">12월</option>
+          </optgroup>
+        </select>
       </div>
       <div id="statsSubTabBar" class="flex gap-2 mt-3 overflow-x-auto flex-nowrap" style="-webkit-overflow-scrolling:touch;">
         <button class="sub-tab sub-tab-active" onclick="switchStatsSubTab('overview')" id="statsSubOverview">종합</button>
@@ -1662,7 +1679,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.22.1',
+  version: '19.22.2',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -6696,34 +6713,19 @@ function statsPeriodLabel() {
   if (statsPeriod.mode === 'month') return y + '년 ' + statsPeriod.month + '월';
   return y + '년';
 }
-function switchStatsPeriod(mode) {
-  statsPeriod.mode = mode;
-  const seg = document.getElementById('statsPeriodSegment');
-  if (seg) seg.querySelectorAll('button').forEach(b => {
-    const on = b.dataset.pmode === mode;
-    b.style.background = on ? '#D20015' : 'transparent';
-    b.style.color = on ? '#fff' : '#565A5B';
-  });
-  renderStatsPeriodValue();
-  renderStatsDashboard();
-}
-function renderStatsPeriodValue() {
-  const sel = document.getElementById('statsPeriodValue');
+function onStatsPeriodSelChange() {
+  const sel = document.getElementById('statsPeriodSel');
   if (!sel) return;
-  if (statsPeriod.mode === 'year') { sel.style.display = 'none'; sel.innerHTML = ''; return; }
-  const items = statsPeriod.mode === 'quarter'
-    ? [1, 2, 3, 4].map(q => ({ v: q, label: q + '분기' }))
-    : [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(m => ({ v: m, label: m + '월' }));
-  const cur = statsPeriod.mode === 'quarter' ? statsPeriod.quarter : statsPeriod.month;
-  sel.innerHTML = items.map(it => `<option value="${it.v}"${it.v === cur ? ' selected' : ''}>${it.label}</option>`).join('');
-  sel.style.display = '';
-}
-function onStatsPeriodValueChange() {
-  const sel = document.getElementById('statsPeriodValue');
-  if (!sel) return;
-  const v = parseInt(sel.value);
-  if (statsPeriod.mode === 'quarter') statsPeriod.quarter = v;
-  else if (statsPeriod.mode === 'month') statsPeriod.month = v;
+  const v = sel.value;
+  if (v === 'year') {
+    statsPeriod.mode = 'year';
+  } else if (v.charAt(0) === 'q') {
+    statsPeriod.mode = 'quarter';
+    statsPeriod.quarter = parseInt(v.slice(1));
+  } else if (v.charAt(0) === 'm') {
+    statsPeriod.mode = 'month';
+    statsPeriod.month = parseInt(v.slice(1));
+  }
   renderStatsDashboard();
 }
 
@@ -15666,7 +15668,7 @@ Object.assign(window, {
   navigateToInput, renderScoreView,
   // Stats tab
   switchStatsSubTab, renderStatsDashboard, toggleWeakDetail,
-  renderOverviewStats, switchStatsPeriod, onStatsPeriodValueChange,
+  renderOverviewStats, onStatsPeriodSelChange,
   // Analysis tab
   switchAnalysisSubTab, renderAnalysis, renderMaturityResultList, toggleAnalysisDetail, closeAnalysisModal, switchInsightSegment, updateInsightSegment, switchCheckSegment, updateCheckSegment,
   // Schedule tab
