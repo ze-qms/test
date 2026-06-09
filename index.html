@@ -1691,7 +1691,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.23.3',
+  version: '19.23.4',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -6900,7 +6900,7 @@ function renderOverviewStats() {
           + `<span style="flex:1;"></span>${badges}`
           + `<span id="ovCarBodyArrow" style="color:#9EA2A1;font-size:14px;margin-left:4px;">&#9656;</span></div>`
           + `<div id="ovCarBody" class="hidden" style="margin-top:14px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid #C0CED1;">`
-          + `<th style="text-align:left;padding:8px 6px;color:#565A5B;">지점</th><th style="padding:8px 6px;color:#565A5B;">심사월</th><th style="padding:8px 6px;color:#565A5B;">분류</th><th style="text-align:left;padding:8px 6px;color:#565A5B;">CAR 제목</th><th style="padding:8px 6px;color:#565A5B;">위험도</th>`
+          + `<th style="text-align:left;padding:8px 6px;color:#565A5B;">심사대상</th><th style="padding:8px 6px;color:#565A5B;">심사월</th><th style="padding:8px 6px;color:#565A5B;">분류</th><th style="text-align:left;padding:8px 6px;color:#565A5B;">CAR 제목</th><th style="padding:8px 6px;color:#565A5B;">위험도</th>`
           + `</tr></thead><tbody>${rows}</tbody></table></div></div>`;
       }
     } catch (e) { console.warn('overview CAR list failed:', e); }
