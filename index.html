@@ -1691,7 +1691,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.24.0',
+  version: '19.24.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -5119,7 +5119,7 @@ function renderChecklistItems(items, scores, remarks, type, options) {
     const selected = scores[item.id];
     const remarkVal = remarks[item.id] || '';
 
-    html += `<div style="padding:16px 20px;border-bottom:1px solid rgba(192,206,209,0.3);">`;
+    html += `<div data-item-id="${item.id}" style="padding:16px 20px;border-bottom:1px solid rgba(192,206,209,0.3);transition:background 0.3s,box-shadow 0.3s;">`;
     // PC: inline row / Mobile: stack
     html += `<div class="checklist-item-row">`;
     html += `<div class="item-text-area flex items-start gap-3">`;
@@ -5514,7 +5514,15 @@ function saveAssessment() {
     }
   }
   if (missingItems.length > 0) {
-    showToast(`모든 항목이 입력되지 않았습니다. (미입력 ${missingItems.length}건: ${missingItems.slice(0, 5).join(', ')}${missingItems.length > 5 ? ' 외' : ''})`, 'warning');
+    showToast(`미입력 항목이 ${missingItems.length}건 있습니다. 해당 항목으로 이동합니다.`, 'warning');
+    // v19.24.0: 첫 미입력 항목으로 스크롤 + 잠깐 강조
+    const el = document.querySelector(`[data-item-id="${missingItems[0]}"]`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      el.style.background = 'rgba(210,0,21,0.06)';
+      el.style.boxShadow = 'inset 0 0 0 2px #D20015';
+      setTimeout(() => { el.style.background = ''; el.style.boxShadow = ''; }, 2000);
+    }
     return;
   }
 
@@ -12209,6 +12217,11 @@ function init() {
     // 화면 전환 시 히스토리 기록 (switchTab, setInputPhase, setViewPhase 후킹)
     const origSwitchTab = switchTab;
     switchTab = function(idx) {
+      // v19.24.0: 점검표 작성 중(Phase 4) 미저장 상태로 다른 탭 이동 시 경고 (데스크톱 상단 탭)
+      if (!navigating && activeTab === 1 && inputPhase === 4 && unsavedChanges && idx !== 1) {
+        if (!confirm('저장하지 않은 점검표 데이터가 있습니다.\n저장하지 않고 이동하시겠습니까?')) return;
+        unsavedChanges = false;
+      }
       if (!navigating) { history.push(getState()); forward.length = 0; }
       origSwitchTab(idx);
     };
@@ -12541,7 +12554,7 @@ const DRAFT_USER_NAME = '강동욱';
 const _DP = 'margin:0px;padding:0px;font-size:10pt;font-family:바탕체;line-height:150%;';
 const _DSPAN = 'font-size:11pt;font-family:바탕체;line-height:1.5;';
 
-function _esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+// _esc(): v19.24.0 중복 정의 제거 — 아래 메모 영역의 완전판(따옴표까지 이스케이프) 단일 사용
 const _GANADA = ['가','나','다','라','마','바','사','아','자','차','카','타','파','하'];
 
 // YYYY-MM-DD → YYYY년 M월 D일
