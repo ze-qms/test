@@ -1691,7 +1691,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.23.2',
+  version: '19.23.3',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -6866,7 +6866,7 @@ function renderOverviewStats() {
 
     // v19.23.2: 개선조치요구서 — 펼침형 카드 (헤더=분류 집계, 본문=발행 CAR 리스트)
     try {
-      const carItems = collectCarItems(year).filter(it => (it.period || 'current') !== 'previous');
+      const carItems = collectCarItems(year);
       if (carItems.length) {
         const cc = {}; CAR_CLASSES.forEach(c => cc[c.key] = 0);
         carItems.forEach(it => cc[it.cls] = (cc[it.cls] || 0) + 1);
@@ -13469,17 +13469,28 @@ function loadCarItemsFromFirebase() {
   }).catch(e => console.warn('carItems load from Firebase failed:', e));
 }
 // 차트용 건수 리졸버: items 있으면 period×category 집계, 없으면 legacy car 건수
+// 직전 심사연도(해당 대상에 CAR 항목이 있는 가장 가까운 이전 연도)
+function _prevCarYear(year, station) {
+  const all = SafeStorage.get(CARITEMS_STORAGE_KEY, {});
+  let best = null;
+  for (const key of Object.keys(all)) {
+    const us = key.indexOf('_'); if (us < 0) continue;
+    if (key.slice(us + 1) !== station) continue;
+    const y = parseInt(key.slice(0, us));
+    if (!isNaN(y) && y < year && (best === null || y > best) && _carItemsNormalize(all[key]).length) best = y;
+  }
+  return best;
+}
 function carChartCounts(year, station) {
   const items = loadCarItems(year, station);
-  if (!items.length) return loadCarData(year, station);
+  if (!items.length) return loadCarData(year, station); // legacy(건수) fallback
   const out = { current: {}, previous: {} };
   getCarCategories(station).forEach(c => { out.current[c] = 0; out.previous[c] = 0; });
-  items.forEach(it => {
-    const p = it.period === 'previous' ? 'previous' : 'current';
-    const c = it.category || '(미분류)';
-    if (!(c in out[p])) out[p][c] = 0;
-    out[p][c]++;
-  });
+  const bump = (obj, c) => { if (!(c in out.current)) { out.current[c] = 0; out.previous[c] = 0; } obj[c]++; };
+  items.forEach(it => bump(out.current, it.category || '(미분류)'));
+  // 직전 막대 = 직전 심사연도의 CAR 항목 (period 구분 없음)
+  const py = _prevCarYear(year, station);
+  if (py != null) loadCarItems(py, station).forEach(it => bump(out.previous, it.category || '(미분류)'));
   return out;
 }
 // 분석용: 특정 연도 전체 대상의 CAR 항목 수집 (station·대상유형 부착)
@@ -15024,7 +15035,7 @@ function toggleCarEdit() {
     if (extra) extra.classList.add('hidden');
     carEditItems = loadCarItems(stationDetailYear, stationDetailStation).map(it => ({ ...it }));
     editArea.innerHTML =
-      `<div style="font-size:12px;color:#9EA2A1;margin-bottom:12px;">발견사항을 항목 단위로 입력하세요 (기간·영역·심각도·제목). 차트는 항목 집계로 자동 갱신됩니다.</div>`
+      `<div style="font-size:12px;color:#9EA2A1;margin-bottom:12px;">발견사항을 항목 단위로 입력하세요 (영역·심각도·위험도·제목). 직전 막대는 직전 심사연도 데이터에서 자동으로 가져옵니다.</div>`
       + `<div id="sdCarItemRows"></div>`
       + `<button onclick="carAddItemRow()" class="pill-btn pill-btn-outline" style="font-size:13px;padding:8px 16px;margin-top:8px;">+ CAR 항목 추가</button>`
       + `<div class="flex gap-2 mt-4"><button onclick="saveCarItemsFromInputs()" class="pill-btn pill-btn-primary" style="font-size:13px;padding:8px 20px;">저장</button><button onclick="toggleCarEdit()" class="pill-btn pill-btn-outline" style="font-size:13px;padding:8px 20px;">취소</button></div>`;
@@ -15052,7 +15063,6 @@ function renderCarEditorRows() {
     const likeOpts = `<option value="">가능성</option>` + CAR_RISK_LIKE.map(l => `<option value="${l}"${curLike === l ? ' selected' : ''}>${l}</option>`).join('');
     return `<div style="padding:10px;margin-bottom:8px;background:#fafafa;border-radius:10px;">`
       + `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">`
-      + `<select class="apple-input" style="${ss}" data-idx="${i}" data-field="period"><option value="current"${it.period !== 'previous' ? ' selected' : ''}>금번</option><option value="previous"${it.period === 'previous' ? ' selected' : ''}>직전</option></select>`
       + `<select class="apple-input" style="${ss}" data-idx="${i}" data-field="category">${extraCat}${catOpts}</select>`
       + `<select class="apple-input" style="${ss}" data-idx="${i}" data-field="cls">${clsOpts}</select>`
       + `<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#9EA2A1;">위험도</span><select class="apple-input" style="${ss}" data-idx="${i}" data-field="riskSev" title="심각도">${sevOpts}</select><select class="apple-input" style="${ss}" data-idx="${i}" data-field="riskLike" title="가능성">${likeOpts}</select></span>`
@@ -15071,7 +15081,7 @@ function _carSyncEditorFromDom() {
 function carAddItemRow() {
   _carSyncEditorFromDom();
   const cats = getCarCategories(stationDetailStation);
-  carEditItems.push({ id: 'ci_' + Date.now() + '_' + Math.floor(Math.random() * 1e6), period: 'current', category: cats[0] || '', cls: 'class1', title: '' });
+  carEditItems.push({ id: 'ci_' + Date.now() + '_' + Math.floor(Math.random() * 1e6), category: cats[0] || '', cls: 'class1', title: '' });
   renderCarEditorRows();
 }
 function carRemoveItemRow(idx) {
@@ -15088,7 +15098,6 @@ function saveCarItemsFromInputs() {
       const risk = (sev && like) ? (sev + like) : '';
       return {
         id: it.id || ('ci_' + Date.now() + '_' + Math.floor(Math.random() * 1e6)),
-        period: it.period === 'previous' ? 'previous' : 'current',
         category: it.category || '',
         cls: it.cls || 'class1',
         risk: risk,
@@ -15850,7 +15859,7 @@ function renderSDCarChart(carData) {
 function renderCarClassSummary(year, station) {
   const box = document.getElementById('sdCarClassSummary');
   if (!box) return;
-  const items = loadCarItems(year, station).filter(it => (it.period || 'current') !== 'previous');
+  const items = loadCarItems(year, station);
   if (!items.length) { box.innerHTML = ''; return; }
   const counts = {};
   CAR_CLASSES.forEach(c => counts[c.key] = 0);
@@ -15858,7 +15867,7 @@ function renderCarClassSummary(year, station) {
   const badges = CAR_CLASSES.map(c =>
     `<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:5px 11px;border-radius:980px;background:${c.bg};color:${c.color};"><span style="width:8px;height:8px;border-radius:50%;background:${c.color};"></span>${c.label} ${counts[c.key] || 0}</span>`
   ).join('');
-  box.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"><span style="font-size:12px;color:#9EA2A1;margin-right:2px;">금번 분류</span>${badges}</div>`;
+  box.innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;"><span style="font-size:12px;color:#9EA2A1;margin-right:2px;">분류</span>${badges}</div>`;
 }
 
 // v19.23.0: CAR 항목 리스트 (접이식)
@@ -15867,16 +15876,13 @@ function renderCarItemsList(year, station) {
   if (!box) return;
   const items = loadCarItems(year, station);
   if (!items.length) { box.innerHTML = ''; return; }
-  const order = { current: 0, previous: 1 };
-  const sorted = [...items].sort((a, b) => (order[a.period || 'current'] - order[b.period || 'current']));
-  const rows = sorted.map(it => {
+  const rows = items.map(it => {
     const cm = carClassMeta(it.cls);
-    const isPrev = (it.period === 'previous');
     const rb = riskBadgeHtml(it.risk);
-    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid rgba(192,206,209,0.25);${isPrev ? 'opacity:0.6;' : ''}">`
+    return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid rgba(192,206,209,0.25);">`
       + `<span style="flex-shrink:0;font-size:11px;font-weight:700;padding:2px 7px;border-radius:980px;background:${cm.bg};color:${cm.color};">${cm.label}</span>`
       + (rb ? `<span style="flex-shrink:0;">${rb}</span>` : '')
-      + `<div style="min-width:0;flex:1;"><div style="font-size:13px;color:#303A3C;">${_esc(it.title || '(제목 없음)')}</div><div style="font-size:11px;color:#9EA2A1;">${_esc(it.category || '')}${isPrev ? ' · 직전' : ''}</div></div>`
+      + `<div style="min-width:0;flex:1;"><div style="font-size:13px;color:#303A3C;">${_esc(it.title || '(제목 없음)')}</div><div style="font-size:11px;color:#9EA2A1;">${_esc(it.category || '')}</div></div>`
       + `</div>`;
   }).join('');
   box.innerHTML = `<div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding:6px 0;" onclick="toggleSection('sdCarItemsBody')">`
