@@ -1691,7 +1691,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.23.1',
+  version: '19.23.2',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -6864,20 +6864,46 @@ function renderOverviewStats() {
       + card('외주협력업체', completedOutsourcing.size, '곳', '적합률 ' + (osAvg != null ? osAvg.toFixed(1) + '%' : '-'))
       + `</div>`;
 
-    // v19.23.0: 분류별 CAR KPI (연도 기준)
+    // v19.23.2: 개선조치요구서 — 펼침형 카드 (헤더=분류 집계, 본문=발행 CAR 리스트)
     try {
-      const carItems = collectCarItems(year);
+      const carItems = collectCarItems(year).filter(it => (it.period || 'current') !== 'previous');
       if (carItems.length) {
         const cc = {}; CAR_CLASSES.forEach(c => cc[c.key] = 0);
         carItems.forEach(it => cc[it.cls] = (cc[it.cls] || 0) + 1);
-        html += `<div class="apple-card p-6 mb-6" style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">`
-          + `<span style="font-size:14px;font-weight:600;color:#303A3C;">개선조치요구서</span>`
+        // 대상명 → 심사월 (가장 이른 심사 시작월)
+        const monthOf = {};
+        allData.filter(d => d.year == year).forEach(d => {
+          const name = (d.auditCategory === 'division') ? (d.division || d.station) : d.station;
+          const dt = d.auditDateStart || d.auditDate || '';
+          const m = dt.length >= 7 ? parseInt(dt.slice(5, 7)) : null;
+          if (name && m) { if (!monthOf[name] || m < monthOf[name]) monthOf[name] = m; }
+        });
+        const badges = CAR_CLASSES.map(c => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:5px 12px;border-radius:980px;background:${c.bg};color:${c.color};"><span style="width:8px;height:8px;border-radius:50%;background:${c.color};"></span>${c.label} ${cc[c.key] || 0}</span>`).join('');
+        const tt = (typ) => typ === 'division' ? '실·본부' : typ === 'outsourcing' ? '외주' : '지점';
+        const rows = carItems.slice().sort((a, b) => (monthOf[a.station] || 99) - (monthOf[b.station] || 99)).map(it => {
+          const cm = carClassMeta(it.cls);
+          const mon = monthOf[it.station] ? (monthOf[it.station] + '월') : '-';
+          const rb = riskBadgeHtml(it.risk) || '<span style="color:#C0CED1;">-</span>';
+          const safe = String(it.station).replace(/'/g, "\\'");
+          return `<tr style="border-bottom:1px solid rgba(192,206,209,0.25);cursor:pointer;" onclick="openStationDetail(${year},'${safe}')">`
+            + `<td style="padding:8px 6px;"><span style="font-weight:600;color:#D20015;">${_esc(it.station)}</span> <span style="font-size:11px;color:#9EA2A1;">${tt(it.targetType)}</span></td>`
+            + `<td style="padding:8px 6px;text-align:center;color:#565A5B;">${mon}</td>`
+            + `<td style="padding:8px 6px;text-align:center;"><span style="font-size:11px;font-weight:700;padding:2px 7px;border-radius:980px;background:${cm.bg};color:${cm.color};">${cm.label}</span></td>`
+            + `<td style="padding:8px 6px;color:#303A3C;">${_esc(it.title || '(제목 없음)')}</td>`
+            + `<td style="padding:8px 6px;text-align:center;">${rb}</td>`
+            + `</tr>`;
+        }).join('');
+        html += `<div class="apple-card p-6 mb-6">`
+          + `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;cursor:pointer;" onclick="toggleSection('ovCarBody')">`
+          + `<span style="font-size:15px;font-weight:600;color:#303A3C;">개선조치요구서</span>`
           + `<span style="font-size:12px;color:#9EA2A1;">${year}년 ${carItems.length}건</span>`
-          + `<span style="flex:1;"></span>`
-          + CAR_CLASSES.map(c => `<span style="display:inline-flex;align-items:center;gap:5px;font-size:13px;font-weight:600;padding:5px 12px;border-radius:980px;background:${c.bg};color:${c.color};"><span style="width:8px;height:8px;border-radius:50%;background:${c.color};"></span>${c.label} ${cc[c.key] || 0}</span>`).join('')
-          + `</div>`;
+          + `<span style="flex:1;"></span>${badges}`
+          + `<span id="ovCarBodyArrow" style="color:#9EA2A1;font-size:14px;margin-left:4px;">&#9656;</span></div>`
+          + `<div id="ovCarBody" class="hidden" style="margin-top:14px;overflow-x:auto;"><table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid #C0CED1;">`
+          + `<th style="text-align:left;padding:8px 6px;color:#565A5B;">지점</th><th style="padding:8px 6px;color:#565A5B;">심사월</th><th style="padding:8px 6px;color:#565A5B;">분류</th><th style="text-align:left;padding:8px 6px;color:#565A5B;">CAR 제목</th><th style="padding:8px 6px;color:#565A5B;">위험도</th>`
+          + `</tr></thead><tbody>${rows}</tbody></table></div></div>`;
       }
-    } catch (e) { console.warn('overview CAR KPI failed:', e); }
+    } catch (e) { console.warn('overview CAR list failed:', e); }
 
     // 유형별 섹션 (기본 접힘)
     html += _ovSection('지점', 'ov_branch', [...completedStations], byName, year);
@@ -8518,9 +8544,10 @@ function renderCarAnalysis(year) {
   html += `</tbody></table></div>`;
   if (class1Items.length) {
     html += `<div style="font-size:13px;font-weight:600;color:#D20015;margin-bottom:8px;">Class 1 주요 발견사항 (${class1Items.length}건)</div>`;
-    html += class1Items.map(it =>
-      `<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(192,206,209,0.25);"><span style="flex-shrink:0;font-size:11px;font-weight:600;padding:2px 8px;border-radius:980px;background:rgba(210,0,21,0.08);color:#D20015;cursor:pointer;" onclick="openStationDetail(${year},'${String(it.station).replace(/'/g, "\\'")}')">${_esc(it.station)}</span><span style="font-size:13px;color:#303A3C;flex:1;min-width:0;">${_esc(it.title || '(제목 없음)')}</span><span style="font-size:11px;color:#9EA2A1;flex-shrink:0;">${_esc(it.category || '')}</span></div>`
-    ).join('');
+    html += class1Items.map(it => {
+      const rb = riskBadgeHtml(it.risk);
+      return `<div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid rgba(192,206,209,0.25);"><span style="flex-shrink:0;font-size:11px;font-weight:600;padding:2px 8px;border-radius:980px;background:rgba(210,0,21,0.08);color:#D20015;cursor:pointer;" onclick="openStationDetail(${year},'${String(it.station).replace(/'/g, "\\'")}')">${_esc(it.station)}</span>${rb ? `<span style="flex-shrink:0;">${rb}</span>` : ''}<span style="font-size:13px;color:#303A3C;flex:1;min-width:0;">${_esc(it.title || '(제목 없음)')}</span><span style="font-size:11px;color:#9EA2A1;flex-shrink:0;">${_esc(it.category || '')}</span></div>`;
+    }).join('');
   }
   html += `</div>`;
   box.innerHTML = html;
@@ -12309,6 +12336,20 @@ const CAR_CLASSES = [
   { key: 'concern', label: 'Concern', full: 'Concern', color: '#CA8A04', bg: 'rgba(234,179,8,0.20)' }
 ];
 function carClassMeta(k) { return CAR_CLASSES.find(c => c.key === k) || { key: k || '', label: k || '미분류', full: k || '미분류', color: '#9EA2A1', bg: 'rgba(158,162,161,0.15)' }; }
+// v19.23.2: 위험도(Risk Level) 배지 — reportMeta RISK_MATRIX/RISK_COLORS 재사용
+function riskMeta(code) {
+  const raw = String(code == null ? '' : code).trim().toUpperCase().replace(/\s+/g, '');
+  const lvl = (typeof RISK_MATRIX !== 'undefined') ? RISK_MATRIX[raw] : null;
+  if (!lvl) return null;
+  return { code: raw, color: RISK_COLORS[lvl], fg: lvl === 'yellow' ? '#333333' : '#ffffff' };
+}
+function riskBadgeHtml(code) {
+  const m = riskMeta(code);
+  if (!m) return '';
+  return `<span style="display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:6px;background:${m.color};color:${m.fg};">${m.code}</span>`;
+}
+const CAR_RISK_SEV = [5, 4, 3, 2, 1];
+const CAR_RISK_LIKE = ['A', 'B', 'C', 'D', 'E'];
 
 // --- Navigation ---
 function openStationDetail(year, station, _fromPopstate) {
@@ -15005,11 +15046,16 @@ function renderCarEditorRows() {
     const extraCat = (it.category && !cats.includes(it.category)) ? `<option value="${_esc(it.category)}" selected>${_esc(it.category)} (미사용)</option>` : '';
     const catOpts = cats.map(c => `<option value="${_esc(c)}"${it.category === c ? ' selected' : ''}>${_esc(c)}</option>`).join('');
     const clsOpts = CAR_CLASSES.map(c => `<option value="${c.key}"${it.cls === c.key ? ' selected' : ''}>${c.label}</option>`).join('');
+    const rk = String(it.risk || '').toUpperCase();
+    const curSev = rk.charAt(0), curLike = rk.slice(1);
+    const sevOpts = `<option value="">심각도</option>` + CAR_RISK_SEV.map(n => `<option value="${n}"${curSev === String(n) ? ' selected' : ''}>${n}</option>`).join('');
+    const likeOpts = `<option value="">가능성</option>` + CAR_RISK_LIKE.map(l => `<option value="${l}"${curLike === l ? ' selected' : ''}>${l}</option>`).join('');
     return `<div style="padding:10px;margin-bottom:8px;background:#fafafa;border-radius:10px;">`
       + `<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;">`
       + `<select class="apple-input" style="${ss}" data-idx="${i}" data-field="period"><option value="current"${it.period !== 'previous' ? ' selected' : ''}>금번</option><option value="previous"${it.period === 'previous' ? ' selected' : ''}>직전</option></select>`
       + `<select class="apple-input" style="${ss}" data-idx="${i}" data-field="category">${extraCat}${catOpts}</select>`
       + `<select class="apple-input" style="${ss}" data-idx="${i}" data-field="cls">${clsOpts}</select>`
+      + `<span style="display:inline-flex;align-items:center;gap:3px;"><span style="font-size:11px;color:#9EA2A1;">위험도</span><select class="apple-input" style="${ss}" data-idx="${i}" data-field="riskSev" title="심각도">${sevOpts}</select><select class="apple-input" style="${ss}" data-idx="${i}" data-field="riskLike" title="가능성">${likeOpts}</select></span>`
       + `<button onclick="carRemoveItemRow(${i})" style="margin-left:auto;background:none;border:none;cursor:pointer;color:#9EA2A1;font-size:18px;padding:2px 8px;" title="삭제">×</button>`
       + `</div>`
       + `<input class="apple-input" style="width:100%;margin-top:6px;padding:7px 10px;font-size:13px;" data-idx="${i}" data-field="title" placeholder="제목 / 요약" value="${_esc(it.title || '')}">`
@@ -15037,13 +15083,18 @@ function saveCarItemsFromInputs() {
   _carSyncEditorFromDom();
   const clean = carEditItems
     .filter(it => it && ((it.title && it.title.trim()) || it.category))
-    .map(it => ({
-      id: it.id || ('ci_' + Date.now() + '_' + Math.floor(Math.random() * 1e6)),
-      period: it.period === 'previous' ? 'previous' : 'current',
-      category: it.category || '',
-      cls: it.cls || 'class1',
-      title: (it.title || '').trim()
-    }));
+    .map(it => {
+      const sev = it.riskSev || '', like = it.riskLike || '';
+      const risk = (sev && like) ? (sev + like) : '';
+      return {
+        id: it.id || ('ci_' + Date.now() + '_' + Math.floor(Math.random() * 1e6)),
+        period: it.period === 'previous' ? 'previous' : 'current',
+        category: it.category || '',
+        cls: it.cls || 'class1',
+        risk: risk,
+        title: (it.title || '').trim()
+      };
+    });
   saveCarItems(stationDetailYear, stationDetailStation, clean);
   toggleCarEdit();
   renderSDCarChart(carChartCounts(stationDetailYear, stationDetailStation));
@@ -15821,8 +15872,10 @@ function renderCarItemsList(year, station) {
   const rows = sorted.map(it => {
     const cm = carClassMeta(it.cls);
     const isPrev = (it.period === 'previous');
+    const rb = riskBadgeHtml(it.risk);
     return `<div style="display:flex;align-items:flex-start;gap:8px;padding:8px 0;border-bottom:1px solid rgba(192,206,209,0.25);${isPrev ? 'opacity:0.6;' : ''}">`
       + `<span style="flex-shrink:0;font-size:11px;font-weight:700;padding:2px 7px;border-radius:980px;background:${cm.bg};color:${cm.color};">${cm.label}</span>`
+      + (rb ? `<span style="flex-shrink:0;">${rb}</span>` : '')
       + `<div style="min-width:0;flex:1;"><div style="font-size:13px;color:#303A3C;">${_esc(it.title || '(제목 없음)')}</div><div style="font-size:11px;color:#9EA2A1;">${_esc(it.category || '')}${isPrev ? ' · 직전' : ''}</div></div>`
       + `</div>`;
   }).join('');
