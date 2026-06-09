@@ -1691,7 +1691,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.24.1',
+  version: '19.24.2',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -4734,12 +4734,18 @@ function switchTab(idx, _fromPopstate) {
   if (idx === 1) {
     selectedAuditCategory = 'all';
     switchAuditCategory('all');
+    // v19.24.2: 탭 재진입 시 연도를 현재 연도(기본값)로 리셋
+    const yEl = document.getElementById('inputYear');
+    if (yEl) yEl.value = String(new Date().getFullYear());
     setInputPhase(1);
   }
   if (idx === 2) {
     selectedViewCategory = 'all';
     switchViewCategory('all');
     clearAllSearchFields();
+    // v19.24.2: 탭 재진입 시 연도를 현재 연도(기본값)로 리셋
+    const vyEl = document.getElementById('viewYear');
+    if (vyEl) vyEl.value = String(new Date().getFullYear());
     document.getElementById('viewRegion').value = '전체';
     document.getElementById('viewType').value = '전체';
     document.getElementById('viewStatus').value = '전체';
@@ -13515,14 +13521,15 @@ function _prevCarYear(year, station) {
 }
 function carChartCounts(year, station) {
   const items = loadCarItems(year, station);
-  if (!items.length) return loadCarData(year, station); // legacy(건수) fallback
+  const py = _prevCarYear(year, station);
+  const prevItems = (py != null) ? loadCarItems(py, station) : [];
+  // 올해·직전 모두 항목이 없을 때만 legacy(건수) fallback — 직전만 있어도 항목 모드 유지
+  if (!items.length && !prevItems.length) return loadCarData(year, station);
   const out = { current: {}, previous: {} };
   getCarCategories(station).forEach(c => { out.current[c] = 0; out.previous[c] = 0; });
   const bump = (obj, c) => { if (!(c in out.current)) { out.current[c] = 0; out.previous[c] = 0; } obj[c]++; };
   items.forEach(it => bump(out.current, it.category || '(미분류)'));
-  // 직전 막대 = 직전 심사연도의 CAR 항목 (period 구분 없음)
-  const py = _prevCarYear(year, station);
-  if (py != null) loadCarItems(py, station).forEach(it => bump(out.previous, it.category || '(미분류)'));
+  prevItems.forEach(it => bump(out.previous, it.category || '(미분류)'));
   return out;
 }
 // 분석용: 특정 연도 전체 대상의 CAR 항목 수집 (station·대상유형 부착)
