@@ -1691,7 +1691,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.24.3',
+  version: '19.24.4',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -15091,7 +15091,7 @@ function renderCarEditorRows() {
     box.innerHTML = `<div style="color:#9EA2A1;font-size:13px;text-align:center;padding:16px;background:#fafafa;border-radius:8px;">아직 항목이 없습니다. "+ CAR 항목 추가"로 발견사항을 입력하세요.</div>`;
     return;
   }
-  const ss = 'padding:7px 10px;font-size:13px;width:auto;';
+  const ss = 'padding:7px 32px 7px 10px;font-size:13px;width:auto;'; // 오른쪽 32px = apple-input 화살표 공간(겹침 방지)
   const lbl = 'font-size:11px;font-weight:600;color:#9EA2A1;margin-bottom:5px;display:block;letter-spacing:-0.2px;';
   box.innerHTML = carEditItems.map((it, i) => {
     const extraCat = (it.category && !cats.includes(it.category)) ? `<option value="${_esc(it.category)}" selected>${_esc(it.category)} (미사용)</option>` : '';
