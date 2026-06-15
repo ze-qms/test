@@ -1710,7 +1710,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.26.1',
+  version: '19.26.2',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -8334,6 +8334,18 @@ function renderAnalysis() {
   html += `<div style="font-size:11px;color:#D20015;margin-top:8px;">상세보기 ></div>`;
   html += `</div>`;
 
+  // Card 11: CAR 분석 (접이식 — 클릭 시 펼침)
+  const carCount = (typeof collectCarItems === 'function') ? collectCarItems(year).length : 0;
+  html += `<div class="apple-card" style="padding:20px;cursor:pointer;transition:all 0.15s ease;"
+    onmouseover="this.style.boxShadow='rgba(0,0,0,0.12) 0px 2px 12px 0px'"
+    onmouseout="this.style.boxShadow='none'"
+    onclick="toggleAnalysisDetail('analysisDetailCar')">`;
+  html += `<div style="font-size:12px;color:#9EA2A1;margin-bottom:4px;">CAR 분석</div>`;
+  html += `<div style="font-size:13px;color:#303A3C;margin-bottom:8px;">개선조치요구서 집계</div>`;
+  html += `<div><span style="font-size:24px;font-weight:600;color:#D20015;">${carCount}</span><span style="font-size:12px;color:#9EA2A1;margin-left:4px;">발견사항</span></div>`;
+  html += `<div style="font-size:11px;color:#D20015;margin-top:8px;">상세보기 ></div>`;
+  html += `</div>`;
+
   html += '</div>';
 
   // ===== Detail Sections (hidden by default) =====
@@ -8635,20 +8647,18 @@ function renderAnalysis() {
   }
   html += `</div>`;
 
-  html += `<div id="carAnalysisSection" style="margin-top:20px;"></div>`;
+  // v19.26.1: CAR 분석을 접이식으로 전환 — 펼칠 때 renderCarAnalysis 호출 (차트 0크기 방지)
+  html += `<div id="analysisDetailCar" class="hidden mb-6 fade-in" style="margin-top:20px;"><div id="carAnalysisInner"></div></div>`;
 
   container.innerHTML = html;
 
   // Store data for chart rendering when detail sections are opened
   window._analysisData = { year, yearData, comparisons, riskItems, typeAvgs, stationGroups, heatmapData, consistencyData, priorityItems, regionCatAvgs, stationsTwoYearsAgo, vocData };
-
-  // v19.23.0: CAR 분석 (class·영역 2축)
-  renderCarAnalysis(year);
 }
 
 // v19.23.0: CAR 분석 (심각도 class · 영역 2축, 전 대상 집계)
 function renderCarAnalysis(year) {
-  const box = document.getElementById('carAnalysisSection');
+  const box = document.getElementById('carAnalysisInner');
   if (!box) return;
   const items = collectCarItems(year);
   const titleH = `<h3 style="font-size:17px;font-weight:600;letter-spacing:-0.28px;color:#303A3C;margin:0 0 4px;">CAR 분석 <span style="color:#9EA2A1;font-weight:500;font-size:13px;">${year}년 · 발견사항 ${items.length}건</span></h3><p style="font-size:13px;color:#9EA2A1;margin:0 0 14px;">개선조치요구서를 심각도·영역 기준으로 집계합니다 (전 심사대상)</p>`;
@@ -9081,7 +9091,7 @@ function renderDivisionRiskChart(yearData) {
 
 function toggleAnalysisDetail(id) {
   // Close all other details
-  ['analysisDetail1','analysisDetail2','analysisDetail3','analysisDetail4','analysisDetail5','analysisDetail6','analysisDetail7','analysisDetail8','analysisDetail9','analysisDetailVoc'].forEach(detailId => {
+  ['analysisDetail1','analysisDetail2','analysisDetail3','analysisDetail4','analysisDetail5','analysisDetail6','analysisDetail7','analysisDetail8','analysisDetail9','analysisDetailVoc','analysisDetailCar'].forEach(detailId => {
     if (detailId !== id) document.getElementById(detailId)?.classList.add('hidden');
   });
 
@@ -9108,6 +9118,7 @@ function toggleAnalysisDetail(id) {
     else if (id === 'analysisDetail8') renderPriorityChart(data);
     else if (id === 'analysisDetail9') renderRegionalRadarChart(data);
     else if (id === 'analysisDetailVoc') renderVocCompareChart(data);
+    else if (id === 'analysisDetailCar') renderCarAnalysis(data.year);
   }
 }
 
