@@ -1710,7 +1710,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.26.0',
+  version: '19.26.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -5796,7 +5796,7 @@ function viewSearch() {
     for (const reg of regionsToShow) {
       for (const station of REGIONS[reg].stations) {
         if (viewTargetVal && station !== viewTargetVal) continue;
-        for (const t of ALL_BRANCH_TYPES) {
+        for (const t of [...ALL_BRANCH_TYPES, ...MONITORING_BRANCH_TYPES]) {
           const company = TYPES_WITH_COMPANY.includes(t) ? (HANDLING_COMPANIES[t]?.[station] || '') : undefined;
           const record = findRecord(year, station, t, company || undefined);
           viewEntries.push({ station, type: t, company: company || '', region: reg, year, record: record || null, auditCategory: 'branch' });
@@ -5872,8 +5872,8 @@ function renderViewSummaryCards(entries, year) {
   const completed = entries.filter(e => e.record);
   const pending = entries.length - completed.length;
 
-  // 지점(grade)과 본부(binary) 분리 집계
-  const gradeCompleted = completed.filter(e => getScoringMethod(e.type) !== 'binary');
+  // 지점(grade)과 본부(binary) 분리 집계 (VOC 모니터링은 종합 점수 미반영 → 제외)
+  const gradeCompleted = completed.filter(e => getScoringMethod(e.type) !== 'binary' && !MONITORING_BRANCH_TYPES.includes(e.type));
   const binaryCompleted = completed.filter(e => getScoringMethod(e.type) === 'binary');
 
   const totalAvg = gradeCompleted.length > 0
@@ -5988,8 +5988,8 @@ function renderScoreViewTable() {
       const isDivision = group.auditCategory === 'division';
       const rowId = `viewGroup_${gIdx}`;
       const anyRecord = Object.values(group.types).find(e => e.record)?.record;
-      const completedTypes = Object.values(group.types).filter(e => e.record);
-      const status = makeStatusBadge(completedTypes, Object.values(group.types).length);
+      const completedTypes = Object.values(group.types).filter(e => e.record && !MONITORING_BRANCH_TYPES.includes(e.type));
+      const status = makeStatusBadge(completedTypes, Object.values(group.types).filter(e => !MONITORING_BRANCH_TYPES.includes(e.type)).length);
 
       // allData 우선, 없으면 scheduleData 보완
       const mSchItem = scheduleData.find(s => s.year == group.year && s.station === group.station);
@@ -6070,8 +6070,8 @@ function renderScoreViewTable() {
       const gIdx = groups.indexOf(group);
       const rowId = `viewGroup_${gIdx}`;
       const anyRecord = Object.values(group.types).find(e => e.record)?.record;
-      const completedTypes = Object.values(group.types).filter(e => e.record);
-      const totalTypes = Object.values(group.types).length;
+      const completedTypes = Object.values(group.types).filter(e => e.record && !MONITORING_BRANCH_TYPES.includes(e.type));
+      const totalTypes = Object.values(group.types).filter(e => !MONITORING_BRANCH_TYPES.includes(e.type)).length;
       const status = makeStatusBadge(completedTypes, totalTypes);
 
       // allData 우선, 없으면 scheduleData에서 보완
@@ -6125,8 +6125,8 @@ function renderScoreViewTable() {
       const gIdx = groups.indexOf(group);
       const rowId = `viewGroup_${gIdx}`;
       const anyRecord = Object.values(group.types).find(e => e.record)?.record;
-      const completedTypes = Object.values(group.types).filter(e => e.record);
-      const totalTypes = Object.values(group.types).length;
+      const completedTypes = Object.values(group.types).filter(e => e.record && !MONITORING_BRANCH_TYPES.includes(e.type));
+      const totalTypes = Object.values(group.types).filter(e => !MONITORING_BRANCH_TYPES.includes(e.type)).length;
       const status = makeStatusBadge(completedTypes, totalTypes);
 
       let dateDisplay = '-', auditorDisplay = '-';
