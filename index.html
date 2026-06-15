@@ -1710,7 +1710,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.26.2',
+  version: '19.26.3',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -16006,20 +16006,7 @@ function renderSDVocSection(d) {
   const remarks = d.vocRecord.remarks || {};
   const avg = d.vocResult.overallAverage;
   const avgStr = (avg !== null && avg !== undefined && !isNaN(avg)) ? avg.toFixed(2) : '-';
-  const avgStyle = (avg !== null && avg !== undefined && !isNaN(avg)) ? avgBadgeStyle(avg) : 'color:#9EA2A1;';
-
-  // 결과창: VOC 평균 + 항목별(5.1~5.4) 점수 카드
-  const scoreCard = (label, val, big) => {
-    const isNa = val === 'N/A';
-    const num = (val !== undefined && val !== null && val !== 'N/A') ? Number(val) : null;
-    const st = num !== null ? avgBadgeStyle(num) : 'background:rgba(158,162,161,0.12);color:#9EA2A1;';
-    const disp = isNa ? 'N/A' : (num !== null ? num.toFixed(0) : '-');
-    return `<div style="padding:12px 10px;text-align:center;border-radius:12px;${st}">`
-      + `<div style="font-size:11px;opacity:0.75;margin-bottom:2px;">${label}</div>`
-      + `<div style="font-size:${big ? 26 : 22}px;font-weight:700;letter-spacing:-0.4px;">${disp}</div></div>`;
-  };
-  let cards = scoreCard('VOC 평균', avgStr, true);
-  items.forEach(it => { cards += scoreCard(it.id, scores[it.id]); });
+  const avgStyle = (avg !== null && avg !== undefined && !isNaN(avg)) ? avgBadgeStyle(avg) : 'background:rgba(158,162,161,0.12);color:#9EA2A1;';
 
   // 항목 표
   let rowsHtml = '';
@@ -16040,11 +16027,11 @@ function renderSDVocSection(d) {
   });
 
   box.innerHTML = `<div class="apple-card p-6 mb-6">`
-    + `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">`
+    + `<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:4px;">`
     + `<h3 style="font-size:15px;font-weight:600;color:#303A3C;margin:0;">VOC 모니터링</h3>`
+    + `<span style="font-size:13px;font-weight:700;padding:2px 10px;border-radius:980px;${avgStyle}">평균 ${avgStr}</span>`
     + `<span style="font-size:11px;font-weight:600;padding:2px 8px;border-radius:980px;background:rgba(0,103,196,0.1);color:#0067C4;">모니터링 지표 · 종합 점수 미반영</span></div>`
     + `<p style="font-size:13px;color:#9EA2A1;margin:0 0 14px;">고객 피드백(VOC) 관리에 관한 사항</p>`
-    + `<div class="grid grid-cols-3 md:grid-cols-5 gap-3 mb-5">${cards}</div>`
     + `<div class="overflow-x-auto"><table style="width:100%;border-collapse:collapse;font-size:13px;">`
     + `<thead><tr style="background:#f9f9fb;border-bottom:2px solid #C0CED1;">`
     + `<th style="text-align:left;padding:10px 8px;font-weight:600;color:#303A3C;white-space:nowrap;">항목</th>`
