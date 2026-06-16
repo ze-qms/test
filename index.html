@@ -1721,7 +1721,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.27.4',
+  version: '19.27.5',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -13980,7 +13980,12 @@ function _clRenderList() {
       <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">${actions}</div></div>`;
   }).join('');
   box.innerHTML = rows
-    + `<div style="margin-top:14px;"><button onclick="clNew()" class="pill-btn pill-btn-primary" style="font-size:13px;padding:8px 18px;">+ 새 점검표 추가</button></div>`;
+    + `<div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button onclick="clNew()" class="pill-btn pill-btn-primary" style="font-size:13px;padding:8px 18px;">+ 새 점검표 추가</button>
+        <button onclick="clDownloadTemplate()" class="pill-btn pill-btn-outline" style="font-size:13px;padding:8px 16px;">엑셀 양식 다운로드</button>
+        <label class="pill-btn pill-btn-outline" style="font-size:13px;padding:8px 16px;cursor:pointer;margin:0;">엑셀로 가져오기<input type="file" accept=".xlsx,.xls" onchange="clImportExcel(event)" style="display:none;"></label>
+      </div>
+      <p style="font-size:11px;color:#9EA2A1;margin-top:8px;line-height:1.5;">'엑셀 양식 다운로드'로 빈 양식을 받아 채운 뒤 '엑셀로 가져오기'를 누르면 편집 화면에 자동으로 불러옵니다. 거기서 점검표 이름·분류·채점방식을 확인하고 저장하세요.</p>`;
 }
 
 function _clBuildDraft(key, reg, isNew) {
@@ -14003,6 +14008,79 @@ function clNew() {
   _clMgr.draft={ key:null, origKey:null, isNew:true, name:'', scoring:'grade', category:'branch',
     cats:[{ catName:'', maxPoints:'', items:[_clEmptyItem()] }] };
   renderChecklistMgrPanel();
+}
+
+// v19.27.5: 엑셀 일괄 등록 — 표준 양식 다운로드 + 업로드→편집화면
+const CL_XLSX_HEADER = ['카테고리','항목ID','점검문구','확인방법','관련매뉴얼','성숙도1단계','성숙도2단계','성숙도3단계','성숙도4단계'];
+function clDownloadTemplate() {
+  if (typeof XLSX === 'undefined') { showToast('엑셀 라이브러리 로드 실패', 'error'); return; }
+  const aoa = [
+    CL_XLSX_HEADER,
+    ['1. 교육 및 훈련에 관한 사항','1.1','업무에 필요한 교육을 이수하고 있는가?','교육 이수 기록 확인','AHM 11.10','관련 내용이 SOP에 규정되어 있지 않음','SOP에 규정되어 있음','계획대로 이수·주기적 현행화','자체 운영 또는 사례 공유 실적 있음'],
+    ['1. 교육 및 훈련에 관한 사항','1.2','교육 기록을 유지·관리하고 있는가?','교육 기록대장 확인','AHM 11.9.5','규정되어 있지 않음','규정되어 있음','정기적으로 관리','연간 계획 수립·최신화'],
+    ['2. 조직관리','2.1','업무분장이 적절한가?','조직도·업무분장표 확인','IOSA ORG 1.1.1','적절히 구성되어 있지 않음','적절히 구성되어 있음','전문성을 갖추고 수행','효과적으로 수행']
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{wch:28},{wch:8},{wch:36},{wch:28},{wch:18},{wch:28},{wch:28},{wch:28},{wch:28}];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, '점검표');
+  XLSX.writeFile(wb, '점검표_등록양식.xlsx');
+}
+function clImportExcel(ev) {
+  const file = ev.target.files && ev.target.files[0];
+  if (!file) return;
+  if (typeof XLSX === 'undefined') { showToast('엑셀 라이브러리 로드 실패', 'error'); ev.target.value=''; return; }
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      const wb = XLSX.read(new Uint8Array(e.target.result), { type:'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+      const draft = _clDraftFromRows(rows, file.name);
+      if (!draft) { showToast('엑셀에서 항목을 찾지 못했습니다. 양식을 확인하세요.', 'error'); return; }
+      _clMgr.mode='edit'; _clMgr.draft=draft;
+      renderChecklistMgrPanel();
+      const n = draft.cats.reduce((s,c)=>s+c.items.length,0);
+      showToast(`엑셀 불러옴 · 카테고리 ${draft.cats.length} · 항목 ${n}. 이름·분류 확인 후 저장하세요.`, 'success');
+    } catch(err) {
+      console.error('clImportExcel failed:', err);
+      showToast('엑셀 읽기 실패: ' + (err.message||err), 'error');
+    } finally { ev.target.value=''; }
+  };
+  reader.readAsArrayBuffer(file);
+}
+function _clDraftFromRows(rows, fileName) {
+  if (!rows || !rows.length) return null;
+  // 헤더 행 탐지(상위 5줄 내 '카테고리'+'항목ID')
+  let hi = -1;
+  for (let i=0;i<Math.min(rows.length,5);i++) {
+    const r = (rows[i]||[]).map(c=>String(c||'').trim());
+    if (r.includes('카테고리') && (r.includes('항목ID')||r.includes('항목 ID'))) { hi=i; break; }
+  }
+  if (hi<0) hi=0;
+  const header = (rows[hi]||[]).map(c=>String(c||'').trim());
+  const col = (names)=>{ for(const n of names){ const idx=header.indexOf(n); if(idx>=0) return idx; } return -1; };
+  const cCat=col(['카테고리']), cId=col(['항목ID','항목 ID']), cText=col(['점검문구','점검 문구']),
+        cVer=col(['확인방법','확인 방법']), cMan=col(['관련매뉴얼','관련 매뉴얼']),
+        cM1=col(['성숙도1단계','성숙도 1단계']), cM2=col(['성숙도2단계','성숙도 2단계']),
+        cM3=col(['성숙도3단계','성숙도 3단계']), cM4=col(['성숙도4단계','성숙도 4단계']);
+  const catMap=new Map(), catOrder=[]; let lastCat='', anyMaturity=false;
+  for (let i=hi+1;i<rows.length;i++) {
+    const r=rows[i]||[];
+    const g=(idx)=> idx>=0 ? String(r[idx]==null?'':r[idx]).trim() : '';
+    const rawCat=g(cCat); const id=g(cId), text=g(cText);
+    if (!rawCat && !id && !text) continue; // 원본 셀 기준 빈 행 skip (병합값 무관)
+    if (rawCat) lastCat=rawCat;
+    const cat=rawCat||lastCat||'(미분류)';
+    if (!catMap.has(cat)) { catMap.set(cat,[]); catOrder.push(cat); }
+    const m1=g(cM1),m2=g(cM2),m3=g(cM3),m4=g(cM4);
+    if (m1||m2||m3||m4) anyMaturity=true;
+    catMap.get(cat).push({ id, text, verification:g(cVer), manual:g(cMan), maturity:{1:m1,2:m2,3:m3,4:m4} });
+  }
+  if (!catOrder.length) return null;
+  const cats=catOrder.map(cn=>({ catName:cn, maxPoints:'', items:catMap.get(cn) }));
+  const name=(fileName||'').replace(/\.(xlsx|xls)$/i,'').replace(/_/g,' ').trim() || '새 점검표';
+  return { key:null, origKey:null, isNew:true, name, scoring: anyMaturity?'grade':'binary', category:'branch', cats };
 }
 
 function _clRenderEdit() {
@@ -16761,6 +16839,7 @@ Object.assign(window, {
   saveCarCategoriesFromPanel, carCatAddRow, carCatRemoveRow,
   renderChecklistMgrPanel, clEdit, clNew, clHide, clUnhide, clSave, clCancel,
   clAddCat, clRemoveCat, clAddItem, clRemoveItem, clOnMetaChange,
+  clDownloadTemplate, clImportExcel,
   // Detail page download (v19.8.0)
   toggleSdDownloadMenu, downloadDetailPDF, downloadDetailHTML, copyDetailHTMLToClipboard, goToChecklistView,
   // 전자결재 결과보고 입력 패널 (v19.17.0) — inline onclick/oninput 핸들러
