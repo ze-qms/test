@@ -1721,7 +1721,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.27.2',
+  version: '19.27.3',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -5070,6 +5070,18 @@ function inputSearch() {
   inputShowTypes();
 }
 
+// v19.27.3: 지점 점검표 라벨/설명 — 기존 키는 특화 문구, 신규 admin 점검표는 generic
+const _BRANCH_CARD_LABEL = { branch:'지점', pax:'여객협력사', ramp:'램프협력사', safety_branch:'지점 안전감사' };
+function _branchCardLabel(key){ return _BRANCH_CARD_LABEL[key] || (CHECKLIST_REGISTRY[key] && CHECKLIST_REGISTRY[key].name) || key; }
+const _BRANCH_TYPE_DESC = {
+  branch:'공항 지점 운영 점검 (1~4등급)', pax:'여객 조업 협력사 점검 (1~4등급)',
+  ramp:'램프 조업 협력사 점검 (1~4등급)', safety_branch:'S(적합) / U(부적합) / N/A 방식'
+};
+function _branchTypeDesc(key){
+  if(_BRANCH_TYPE_DESC[key]) return _BRANCH_TYPE_DESC[key];
+  return getScoringMethod(key)==='binary' ? 'S(적합) / U(부적합) / N/A 방식' : '1~4등급 채점';
+}
+
 function renderTypeStatusCards() {
   let types;
   if (selectedAuditCategory === 'division' && selectedDivision) {
@@ -5079,11 +5091,8 @@ function renderTypeStatusCards() {
       label: CHECKLIST_REGISTRY[key].name
     }));
   } else {
-    types = [
-      { key: 'branch', label: '지점' },
-      { key: 'pax', label: '여객협력사' },
-      { key: 'ramp', label: '램프협력사' }
-    ];
+    // v19.27.3: 지점 grade 점검표 동적 목록 (신규 admin 점검표 자동 포함). binary(안전감사)는 상태카드 제외 유지
+    types = GRADE_BRANCH_TYPES.map(key => ({ key, label: _branchCardLabel(key) }));
     // 협력사(본사) 구분 지점에 외주협력업체 점검표 추가
     const stationRegion = getRegionForStation(selectedStation);
     if (stationRegion === '협력사(본사)') {
@@ -5143,12 +5152,12 @@ function inputShowTypes() {
       scoring: getScoringMethod(key)
     }));
   } else {
-    types = [
-      { key: 'branch', label: '지점 품질심사 점검표', desc: '공항 지점 운영 점검 (1~4등급)', scoring: 'grade' },
-      { key: 'pax', label: '여객협력사 품질심사 점검표', desc: '여객 조업 협력사 점검 (1~4등급)', scoring: 'grade' },
-      { key: 'ramp', label: '램프협력사 품질심사 점검표', desc: '램프 조업 협력사 점검 (1~4등급)', scoring: 'grade' },
-      { key: 'safety_branch', label: '지점 안전감사 점검표', desc: 'S(적합) / U(부적합) / N/A 방식', scoring: 'binary' }
-    ];
+    // v19.27.3: 지점 점검표 동적 목록 (신규 admin 점검표 자동 포함, grade+binary 모두)
+    types = ALL_BRANCH_TYPES.map(key => {
+      const reg = CHECKLIST_REGISTRY[key];
+      const nm = reg.name || key;
+      return { key, label: nm.endsWith('점검표') ? nm : nm + ' 점검표', desc: _branchTypeDesc(key), scoring: reg.scoring };
+    });
     // 협력사(본사) 구분 지점에 외주협력업체 점검표 추가
     const stationRegion = getRegionForStation(selectedStation);
     if (stationRegion === '협력사(본사)') {
