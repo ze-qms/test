@@ -1411,6 +1411,17 @@ select.apple-input {
       </div>
     </div>
 
+    <div class="apple-card p-6 mb-5" id="mgmt_checklist_card" style="display:none;">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleSection('mgmt_checklist')">
+        <h3 style="font-size:17px;font-weight:600;letter-spacing:-0.28px;color:#303A3C;margin:0;">점검표 관리</h3>
+        <span id="mgmt_checklistArrow" style="color:#9EA2A1;font-size:14px;">&#9656;</span>
+      </div>
+      <div id="mgmt_checklist" class="hidden" style="margin-top:16px;">
+        <p style="font-size:12px;color:#9EA2A1;margin-bottom:12px;">점검표의 카테고리·항목·성숙도 정의를 직접 수정하거나, 새 점검표를 추가할 수 있습니다. 기본 점검표는 숨김 처리되며(복구 가능), 직접 만든 점검표는 삭제됩니다. 항목 ID를 바꾸면 과거 점수 기록과 연결이 끊길 수 있으니 주의하세요.</p>
+        <div id="checklistMgrPanel"></div>
+      </div>
+    </div>
+
     <div class="apple-card p-6 mb-5">
       <!-- v19.14.5: 이름 명확화 ('백업' → 'JSON 가져오기/내보내기') — 아래 'Firebase 자동 백업'과 혼동 방지 -->
       <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;" onclick="toggleSection('mgmt_jsonio')">
@@ -1710,7 +1721,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.27.0',
+  version: '19.27.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -10604,6 +10615,8 @@ function renderDataManagement() {
   renderCustomStationList();
   // v19.23.0: CAR 영역 마스터 편집 패널 (admin 전용)
   renderCarCatPanel();
+  // v19.27.1: 점검표 관리 패널 (admin 전용)
+  try { renderChecklistMgrPanel(); } catch(e) { console.warn('renderChecklistMgrPanel failed:', e); }
   // v19.14.4: 백업 목록 자동 로드 제거 — 토글 펼침 시에만 호출 (default 접힘 카드)
   // Populate export station dropdown
   const sel = document.getElementById('exportStation');
@@ -13901,6 +13914,198 @@ function saveCarCategoriesFromPanel() {
 }
 
 // =============================================================================
+// v19.27.1: 점검표 관리 (admin) — 항목/카테고리/성숙도 직접 편집 + 신규/숨김/삭제
+//   seed 위에 checklistMaster override를 덮는 구조(Phase 1). 저장은 saveChecklistMaster.
+// =============================================================================
+let _clMgr = { mode: 'list', draft: null };
+const CL_CATEGORY_OPTIONS = [
+  { value:'branch', label:'지점' },
+  { value:'division', label:'실/본부' },
+  { value:'outsourcing', label:'외주협력' },
+  { value:'branch_monitoring', label:'지점 모니터링(점수 미반영)' }
+];
+function _clCatLabel(c){ const o=CL_CATEGORY_OPTIONS.find(x=>x.value===c); return o?o.label:c; }
+function _clBadge(text, color, bg){ return `<span style="display:inline-block;font-size:11px;font-weight:600;color:${color};background:${bg};border-radius:980px;padding:2px 9px;margin-left:6px;">${_esc(text)}</span>`; }
+function _clEmptyItem(){ return { id:'', text:'', verification:'', manual:'', maturity:{1:'',2:'',3:'',4:''} }; }
+
+function renderChecklistMgrPanel() {
+  const card = document.getElementById('mgmt_checklist_card');
+  const box = document.getElementById('checklistMgrPanel');
+  if (!card || !box) return;
+  const isAdmin = currentUser && currentUser.role === 'admin';
+  card.style.display = isAdmin ? '' : 'none';
+  if (!isAdmin) return;
+  if (_clMgr.mode === 'edit' && _clMgr.draft) _clRenderEdit();
+  else _clRenderList();
+}
+
+function _clRenderList() {
+  const box = document.getElementById('checklistMgrPanel');
+  if (!box) return;
+  const keys = [];
+  Object.keys(CHECKLIST_REGISTRY_SEED).forEach(k => keys.push(k));
+  Object.keys(checklistMasterOverride||{}).forEach(k => { if(!keys.includes(k)) keys.push(k); });
+  const rows = keys.map(key => {
+    const ov = (checklistMasterOverride||{})[key];
+    const hidden = !!(ov && ov.hidden);
+    const isNew = !CHECKLIST_REGISTRY_SEED[key];
+    const edited = !!(ov && !ov.hidden);
+    const reg = CHECKLIST_REGISTRY[key] || CHECKLIST_REGISTRY_SEED[key] || {};
+    const name = (ov && ov.name) || reg.name || key;
+    const scoring = (ov && ov.scoring) || reg.scoring || 'grade';
+    const category = (ov && ov.category) || reg.category || 'branch';
+    const cl = (CHECKLIST_REGISTRY[key]||CHECKLIST_REGISTRY_SEED[key]||{}).checklist || {};
+    let itemCount = 0; for (const cat of Object.values(cl)) itemCount += (cat.items||[]).length;
+    let badges = _clBadge(scoring==='grade'?'성숙도':'적합/부적합', '#1D6FB8', 'rgba(29,111,184,0.12)')
+      + _clBadge(_clCatLabel(category), '#6B7280', 'rgba(107,114,128,0.12)');
+    if (isNew) badges += _clBadge('직접추가', '#16A34A', 'rgba(22,163,74,0.14)');
+    if (edited && !isNew) badges += _clBadge('수정됨', '#D97706', 'rgba(217,119,6,0.14)');
+    if (hidden) badges += _clBadge('숨김', '#9CA3AF', 'rgba(156,163,175,0.18)');
+    const actions = hidden
+      ? `<button onclick="clUnhide('${key}')" class="pill-btn pill-btn-outline" style="font-size:12px;padding:5px 12px;">복구</button>`
+      : `<button onclick="clEdit('${key}')" class="pill-btn pill-btn-outline" style="font-size:12px;padding:5px 12px;">편집</button>`
+        + `<button onclick="clHide('${key}',${isNew})" style="background:none;border:none;cursor:pointer;color:#9EA2A1;font-size:12px;padding:5px 8px;">${isNew?'삭제':'숨김'}</button>`;
+    return `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid #F0F0F0;${hidden?'opacity:.55;':''}">
+      <div style="min-width:0;flex:1;"><span style="font-size:14px;font-weight:600;color:#303A3C;">${_esc(name)}</span>
+        <span style="font-size:12px;color:#9EA2A1;margin-left:6px;">${itemCount}항목</span>${badges}</div>
+      <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;">${actions}</div></div>`;
+  }).join('');
+  box.innerHTML = rows
+    + `<div style="margin-top:14px;"><button onclick="clNew()" class="pill-btn pill-btn-primary" style="font-size:13px;padding:8px 18px;">+ 새 점검표 추가</button></div>`;
+}
+
+function _clBuildDraft(key, reg, isNew) {
+  const cl = reg.checklist || {};
+  const cats = Object.entries(cl).map(([catName, cat]) => ({
+    catName,
+    maxPoints: (cat.maxPoints != null ? cat.maxPoints : ''),
+    items: (cat.items||[]).map(it => Object.assign({}, it, { maturity: Object.assign({1:'',2:'',3:'',4:''}, it.maturity||{}) }))
+  }));
+  return { key, origKey:key, isNew, name:reg.name||'', scoring:reg.scoring||'grade', category:reg.category||'branch', cats };
+}
+function clEdit(key) {
+  const reg = CHECKLIST_REGISTRY[key] || CHECKLIST_REGISTRY_SEED[key];
+  if (!reg) return;
+  _clMgr.mode='edit'; _clMgr.draft=_clBuildDraft(key, reg, false);
+  renderChecklistMgrPanel();
+}
+function clNew() {
+  _clMgr.mode='edit';
+  _clMgr.draft={ key:null, origKey:null, isNew:true, name:'', scoring:'grade', category:'branch',
+    cats:[{ catName:'', maxPoints:'', items:[_clEmptyItem()] }] };
+  renderChecklistMgrPanel();
+}
+
+function _clRenderEdit() {
+  const box = document.getElementById('checklistMgrPanel');
+  const d = _clMgr.draft;
+  if (!box || !d) return;
+  const isGrade = d.scoring === 'grade';
+  const catOpts = CL_CATEGORY_OPTIONS.map(o => `<option value="${o.value}" ${o.value===d.category?'selected':''}>${o.label}</option>`).join('');
+  const head = `<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+    <button onclick="clCancel()" class="pill-btn pill-btn-outline" style="font-size:12px;padding:6px 12px;">← 목록으로</button>
+    <button onclick="clSave()" class="pill-btn pill-btn-primary" style="font-size:13px;padding:8px 20px;">저장</button></div>`;
+  const meta = `<div style="display:grid;grid-template-columns:1fr 150px 180px;gap:10px;margin-bottom:18px;">
+    <div><div style="font-size:12px;color:#6B7280;margin-bottom:4px;">점검표 이름</div>
+      <input class="apple-input" data-clm="name" value="${_esc(d.name)}" style="width:100%;padding:8px 11px;font-size:14px;"></div>
+    <div><div style="font-size:12px;color:#6B7280;margin-bottom:4px;">채점 방식</div>
+      <select class="apple-input" data-clm="scoring" onchange="clOnMetaChange()" style="width:100%;padding:8px 32px 8px 11px;font-size:13px;">
+        <option value="grade" ${isGrade?'selected':''}>성숙도(1~4점)</option>
+        <option value="binary" ${!isGrade?'selected':''}>적합/부적합(S·U·NA)</option></select></div>
+    <div><div style="font-size:12px;color:#6B7280;margin-bottom:4px;">분류</div>
+      <select class="apple-input" data-clm="category" style="width:100%;padding:8px 32px 8px 11px;font-size:13px;">${catOpts}</select></div></div>`;
+  const catsHtml = d.cats.map((cat, ci) => {
+    const itemsHtml = (cat.items||[]).map((it, ii) => {
+      const matHtml = isGrade ? `<div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">`
+        + [1,2,3,4].map(n => `<div><div style="font-size:11px;color:#9CA3AF;margin-bottom:2px;">성숙도 ${n}단계</div>
+            <textarea data-clci="${ci}" data-clii="${ii}" data-clmat="${n}" class="apple-input" rows="2" style="width:100%;padding:6px 9px;font-size:12px;resize:vertical;">${_esc((it.maturity&&it.maturity[n])||'')}</textarea></div>`).join('')
+        + `</div>` : '';
+      return `<div style="background:#FAFAFA;border:1px solid #EEE;border-radius:8px;padding:10px;margin-bottom:8px;">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
+          <input data-clci="${ci}" data-clii="${ii}" data-clitem="id" class="apple-input" value="${_esc(it.id||'')}" placeholder="ID" style="width:70px;padding:6px 8px;font-size:13px;">
+          <input data-clci="${ci}" data-clii="${ii}" data-clitem="text" class="apple-input" value="${_esc(it.text||'')}" placeholder="점검 문구" style="flex:1;padding:6px 9px;font-size:13px;">
+          <button onclick="clRemoveItem(${ci},${ii})" style="background:none;border:none;cursor:pointer;color:#9EA2A1;font-size:18px;padding:2px 6px;" title="항목 삭제">&times;</button></div>
+        <textarea data-clci="${ci}" data-clii="${ii}" data-clitem="verification" class="apple-input" rows="2" placeholder="확인 방법" style="width:100%;padding:6px 9px;font-size:12px;resize:vertical;margin-bottom:5px;">${_esc(it.verification||'')}</textarea>
+        <textarea data-clci="${ci}" data-clii="${ii}" data-clitem="manual" class="apple-input" rows="1" placeholder="관련 매뉴얼" style="width:100%;padding:6px 9px;font-size:12px;resize:vertical;">${_esc(it.manual||'')}</textarea>
+        ${matHtml}</div>`;
+    }).join('');
+    return `<div style="border:1px solid #E5E7EB;border-radius:10px;padding:12px;margin-bottom:12px;">
+      <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;">
+        <input data-clci="${ci}" data-clcat="catName" class="apple-input" value="${_esc(cat.catName||'')}" placeholder="카테고리 이름" style="flex:1;padding:7px 10px;font-size:13px;font-weight:600;">
+        <input data-clci="${ci}" data-clcat="maxPoints" class="apple-input" value="${_esc(String(cat.maxPoints||''))}" placeholder="만점" style="width:64px;padding:7px 8px;font-size:13px;">
+        <button onclick="clRemoveCat(${ci})" style="background:none;border:none;cursor:pointer;color:#D20015;font-size:12px;padding:5px 8px;">카테고리 삭제</button></div>
+      ${itemsHtml}
+      <button onclick="clAddItem(${ci})" class="pill-btn pill-btn-outline" style="font-size:12px;padding:5px 12px;">+ 항목 추가</button></div>`;
+  }).join('');
+  box.innerHTML = head + meta + catsHtml
+    + `<button onclick="clAddCat()" class="pill-btn pill-btn-outline" style="font-size:13px;padding:7px 14px;">+ 카테고리 추가</button>`;
+}
+
+function _clSyncEditDom() {
+  const d=_clMgr.draft; if(!d) return;
+  document.querySelectorAll('#checklistMgrPanel [data-clm]').forEach(el=>{ d[el.dataset.clm]=el.value; });
+  document.querySelectorAll('#checklistMgrPanel [data-clcat]').forEach(el=>{ const ci=+el.dataset.clci; if(d.cats[ci]) d.cats[ci][el.dataset.clcat]=el.value; });
+  document.querySelectorAll('#checklistMgrPanel [data-clitem]').forEach(el=>{ const ci=+el.dataset.clci, ii=+el.dataset.clii; if(d.cats[ci]&&d.cats[ci].items[ii]) d.cats[ci].items[ii][el.dataset.clitem]=el.value; });
+  document.querySelectorAll('#checklistMgrPanel [data-clmat]').forEach(el=>{ const ci=+el.dataset.clci, ii=+el.dataset.clii; if(d.cats[ci]&&d.cats[ci].items[ii]){ if(!d.cats[ci].items[ii].maturity) d.cats[ci].items[ii].maturity={}; d.cats[ci].items[ii].maturity[el.dataset.clmat]=el.value; } });
+}
+function clOnMetaChange(){ _clSyncEditDom(); renderChecklistMgrPanel(); }
+function clCancel(){ _clMgr.mode='list'; _clMgr.draft=null; renderChecklistMgrPanel(); }
+function clAddCat(){ _clSyncEditDom(); if(_clMgr.draft) _clMgr.draft.cats.push({catName:'',maxPoints:'',items:[_clEmptyItem()]}); renderChecklistMgrPanel(); }
+function clRemoveCat(ci){ _clSyncEditDom(); if(!confirm('이 카테고리와 포함된 항목을 모두 삭제할까요?'))return; if(_clMgr.draft) _clMgr.draft.cats.splice(ci,1); renderChecklistMgrPanel(); }
+function clAddItem(ci){ _clSyncEditDom(); if(_clMgr.draft && _clMgr.draft.cats[ci]) _clMgr.draft.cats[ci].items.push(_clEmptyItem()); renderChecklistMgrPanel(); }
+function clRemoveItem(ci,ii){ _clSyncEditDom(); if(_clMgr.draft && _clMgr.draft.cats[ci]) _clMgr.draft.cats[ci].items.splice(ii,1); renderChecklistMgrPanel(); }
+
+function clSave() {
+  _clSyncEditDom();
+  const d=_clMgr.draft; if(!d) return;
+  if(!String(d.name||'').trim()){ showToast('점검표 이름을 입력하세요.', 'error'); return; }
+  const checklist={}; const seenIds=new Set(); let dupId=null, emptyCat=false, hasItem=false;
+  for(const cat of d.cats){
+    const cn=String(cat.catName||'').trim();
+    const rawItems=(cat.items||[]).filter(it => String(it.id||'').trim() || String(it.text||'').trim());
+    if(!cn){ if(rawItems.length) emptyCat=true; continue; }
+    const outItems=rawItems.map(it=>{
+      const id=String(it.id||'').trim();
+      if(id){ if(seenIds.has(id)) dupId=id; seenIds.add(id); }
+      const base=Object.assign({}, it); delete base.maturity;
+      const o=Object.assign(base, { id, text:String(it.text||'').trim(), verification:String(it.verification||'').trim(), manual:String(it.manual||'').trim() });
+      if(d.scoring==='grade'){ const m=it.maturity||{}; o.maturity={1:String(m[1]||''),2:String(m[2]||''),3:String(m[3]||''),4:String(m[4]||'')}; }
+      return o;
+    });
+    if(outItems.length) hasItem=true;
+    checklist[cn]={ maxPoints: Number(cat.maxPoints)||0, items: outItems };
+  }
+  if(emptyCat){ showToast('항목이 있는 카테고리는 이름이 필요합니다.', 'error'); return; }
+  if(!Object.keys(checklist).length || !hasItem){ showToast('최소 1개 카테고리·항목이 필요합니다.', 'error'); return; }
+  if(dupId){ showToast('항목 ID가 중복됩니다: '+dupId, 'error'); return; }
+  const key=d.key || ('custom_'+Date.now());
+  const entry={ name:String(d.name).trim(), scoring:d.scoring, category:d.category,
+    checklistJson:JSON.stringify(checklist), updatedAt:new Date().toISOString(),
+    updatedBy:(currentUser.empNo||'')+' / '+(currentUser.name||'') };
+  const master=Object.assign({}, checklistMasterOverride); master[key]=entry;
+  saveChecklistMaster(master);
+  _clMgr.mode='list'; _clMgr.draft=null;
+  renderChecklistMgrPanel();
+  showToast('점검표가 저장되었습니다.', 'success');
+}
+function clHide(key, isNew) {
+  if(isNew){
+    if(!confirm('직접 추가한 점검표를 삭제할까요? 되돌릴 수 없습니다.')) return;
+    const master=Object.assign({}, checklistMasterOverride); delete master[key]; saveChecklistMaster(master);
+    showToast('점검표를 삭제했습니다.', 'success');
+  } else {
+    if(!confirm('기본 점검표를 목록에서 숨길까요? 나중에 복구할 수 있습니다.')) return;
+    const master=Object.assign({}, checklistMasterOverride); master[key]={hidden:true}; saveChecklistMaster(master);
+    showToast('점검표를 숨겼습니다.', 'success');
+  }
+  renderChecklistMgrPanel();
+}
+function clUnhide(key) {
+  const master=Object.assign({}, checklistMasterOverride); delete master[key]; saveChecklistMaster(master);
+  renderChecklistMgrPanel(); showToast('점검표를 복구했습니다.', 'success');
+}
+
+// =============================================================================
 // v19.17.0: 결과보고 메타(reportMeta) — 전자결재 기안서 수동 입력 데이터
 // 키: 'year_station|division'. 특수키 '_defaults' = 공통 boilerplate(관련근거 등)
 // 저장 패턴: CAR(saveCarData)와 동일 — child(key).set, per-key 단위라 wipe 위험 없음
@@ -16534,6 +16739,8 @@ Object.assign(window, {
   toggleCarEdit, loadCarDataFromFirebase,
   carAddItemRow, carRemoveItemRow, saveCarItemsFromInputs, renderCarClassSummary, renderCarItemsList,
   saveCarCategoriesFromPanel, carCatAddRow, carCatRemoveRow,
+  renderChecklistMgrPanel, clEdit, clNew, clHide, clUnhide, clSave, clCancel,
+  clAddCat, clRemoveCat, clAddItem, clRemoveItem, clOnMetaChange,
   // Detail page download (v19.8.0)
   toggleSdDownloadMenu, downloadDetailPDF, downloadDetailHTML, copyDetailHTMLToClipboard, goToChecklistView,
   // 전자결재 결과보고 입력 패널 (v19.17.0) — inline onclick/oninput 핸들러
