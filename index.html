@@ -1721,7 +1721,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.27.1',
+  version: '19.27.2',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -14014,28 +14014,33 @@ function _clRenderEdit() {
         <option value="binary" ${!isGrade?'selected':''}>적합/부적합(S·U·NA)</option></select></div>
     <div><div style="font-size:12px;color:#6B7280;margin-bottom:4px;">분류</div>
       <select class="apple-input" data-clm="category" style="width:100%;padding:8px 32px 8px 11px;font-size:13px;">${catOpts}</select></div></div>`;
+  // 공통 스타일 — 입력칸은 흰 배경 + 또렷한 테두리, 각 칸 위에 라벨
+  const lbl = (t) => `<div style="font-size:11px;color:#8A9099;margin-bottom:3px;font-weight:600;">${t}</div>`;
+  const inSt = 'width:100%;padding:8px 10px;font-size:13px;background:#fff;border:1px solid #CDD2D8;border-radius:6px;box-sizing:border-box;';
+  const taSt = 'width:100%;padding:8px 10px;font-size:12px;line-height:1.45;background:#fff;border:1px solid #CDD2D8;border-radius:6px;resize:vertical;box-sizing:border-box;';
   const catsHtml = d.cats.map((cat, ci) => {
     const itemsHtml = (cat.items||[]).map((it, ii) => {
-      const matHtml = isGrade ? `<div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:6px;">`
-        + [1,2,3,4].map(n => `<div><div style="font-size:11px;color:#9CA3AF;margin-bottom:2px;">성숙도 ${n}단계</div>
-            <textarea data-clci="${ci}" data-clii="${ii}" data-clmat="${n}" class="apple-input" rows="2" style="width:100%;padding:6px 9px;font-size:12px;resize:vertical;">${_esc((it.maturity&&it.maturity[n])||'')}</textarea></div>`).join('')
-        + `</div>` : '';
-      return `<div style="background:#FAFAFA;border:1px solid #EEE;border-radius:8px;padding:10px;margin-bottom:8px;">
-        <div style="display:flex;gap:6px;align-items:center;margin-bottom:6px;">
-          <input data-clci="${ci}" data-clii="${ii}" data-clitem="id" class="apple-input" value="${_esc(it.id||'')}" placeholder="ID" style="width:70px;padding:6px 8px;font-size:13px;">
-          <input data-clci="${ci}" data-clii="${ii}" data-clitem="text" class="apple-input" value="${_esc(it.text||'')}" placeholder="점검 문구" style="flex:1;padding:6px 9px;font-size:13px;">
-          <button onclick="clRemoveItem(${ci},${ii})" style="background:none;border:none;cursor:pointer;color:#9EA2A1;font-size:18px;padding:2px 6px;" title="항목 삭제">&times;</button></div>
-        <textarea data-clci="${ci}" data-clii="${ii}" data-clitem="verification" class="apple-input" rows="2" placeholder="확인 방법" style="width:100%;padding:6px 9px;font-size:12px;resize:vertical;margin-bottom:5px;">${_esc(it.verification||'')}</textarea>
-        <textarea data-clci="${ci}" data-clii="${ii}" data-clitem="manual" class="apple-input" rows="1" placeholder="관련 매뉴얼" style="width:100%;padding:6px 9px;font-size:12px;resize:vertical;">${_esc(it.manual||'')}</textarea>
+      const matHtml = isGrade ? `<div style="border-top:1px dashed #D5DAE0;margin-top:10px;padding-top:9px;">
+          <div style="font-size:11px;font-weight:700;color:#566;letter-spacing:.2px;margin-bottom:7px;">성숙도 단계별 정의</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">`
+        + [1,2,3,4].map(n => `<div>${lbl('성숙도 '+n+'단계')}<textarea data-clci="${ci}" data-clii="${ii}" data-clmat="${n}" rows="2" style="${taSt}">${_esc((it.maturity&&it.maturity[n])||'')}</textarea></div>`).join('')
+        + `</div></div>` : '';
+      return `<div style="background:#F4F6F8;border:1px solid #DDE2E8;border-radius:9px;padding:12px;margin-bottom:10px;">
+        <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:9px;">
+          <div style="width:86px;flex-shrink:0;">${lbl('항목 ID')}<input data-clci="${ci}" data-clii="${ii}" data-clitem="id" value="${_esc(it.id||'')}" placeholder="예: 1.1" style="${inSt}padding-left:8px;padding-right:8px;"></div>
+          <div style="flex:1;min-width:0;">${lbl('점검 문구')}<input data-clci="${ci}" data-clii="${ii}" data-clitem="text" value="${_esc(it.text||'')}" placeholder="점검 질문 내용" style="${inSt}"></div>
+          <button onclick="clRemoveItem(${ci},${ii})" style="background:none;border:none;cursor:pointer;color:#9EA2A1;font-size:20px;line-height:1;padding:6px;flex-shrink:0;" title="항목 삭제">&times;</button></div>
+        <div style="margin-bottom:8px;">${lbl('확인 방법')}<textarea data-clci="${ci}" data-clii="${ii}" data-clitem="verification" rows="2" placeholder="확인할 자료·인터뷰 등" style="${taSt}">${_esc(it.verification||'')}</textarea></div>
+        <div>${lbl('관련 매뉴얼')}<textarea data-clci="${ci}" data-clii="${ii}" data-clitem="manual" rows="1" placeholder="예: AHM 11.9.5" style="${taSt}">${_esc(it.manual||'')}</textarea></div>
         ${matHtml}</div>`;
     }).join('');
-    return `<div style="border:1px solid #E5E7EB;border-radius:10px;padding:12px;margin-bottom:12px;">
-      <div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;">
-        <input data-clci="${ci}" data-clcat="catName" class="apple-input" value="${_esc(cat.catName||'')}" placeholder="카테고리 이름" style="flex:1;padding:7px 10px;font-size:13px;font-weight:600;">
-        <input data-clci="${ci}" data-clcat="maxPoints" class="apple-input" value="${_esc(String(cat.maxPoints||''))}" placeholder="만점" style="width:64px;padding:7px 8px;font-size:13px;">
-        <button onclick="clRemoveCat(${ci})" style="background:none;border:none;cursor:pointer;color:#D20015;font-size:12px;padding:5px 8px;">카테고리 삭제</button></div>
+    return `<div style="border:1px solid #D9DEE4;border-radius:11px;padding:14px;margin-bottom:14px;background:#fff;">
+      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:12px;padding-bottom:11px;border-bottom:1px solid #EEF0F3;">
+        <div style="flex:1;min-width:0;">${lbl('카테고리 이름')}<input data-clci="${ci}" data-clcat="catName" value="${_esc(cat.catName||'')}" placeholder="예: 1. 교육 및 훈련에 관한 사항" style="${inSt}font-weight:600;"></div>
+        <div style="width:72px;flex-shrink:0;">${lbl('만점')}<input data-clci="${ci}" data-clcat="maxPoints" value="${_esc(String(cat.maxPoints||''))}" placeholder="28" style="${inSt}padding-left:8px;padding-right:8px;text-align:center;"></div>
+        <button onclick="clRemoveCat(${ci})" style="background:none;border:none;cursor:pointer;color:#D20015;font-size:12px;font-weight:600;padding:8px 4px;flex-shrink:0;white-space:nowrap;">카테고리 삭제</button></div>
       ${itemsHtml}
-      <button onclick="clAddItem(${ci})" class="pill-btn pill-btn-outline" style="font-size:12px;padding:5px 12px;">+ 항목 추가</button></div>`;
+      <button onclick="clAddItem(${ci})" class="pill-btn pill-btn-outline" style="font-size:12px;padding:6px 13px;">+ 항목 추가</button></div>`;
   }).join('');
   box.innerHTML = head + meta + catsHtml
     + `<button onclick="clAddCat()" class="pill-btn pill-btn-outline" style="font-size:13px;padding:7px 14px;">+ 카테고리 추가</button>`;
