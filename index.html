@@ -1721,7 +1721,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.27.3',
+  version: '19.27.4',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -14043,10 +14043,15 @@ function _clRenderEdit() {
         <div>${lbl('관련 매뉴얼')}<textarea data-clci="${ci}" data-clii="${ii}" data-clitem="manual" rows="1" placeholder="예: AHM 11.9.5" style="${taSt}">${_esc(it.manual||'')}</textarea></div>
         ${matHtml}</div>`;
     }).join('');
+    const catItemN = (cat.items||[]).length;
+    // v19.27.4: 만점은 수동 입력 제거 — grade는 항목수×4 자동(채점함수 fallback과 동일), binary는 만점 미사용
+    const mpDisplay = isGrade
+      ? `<div style="flex-shrink:0;text-align:right;">${lbl('만점(자동)')}<div style="font-size:14px;font-weight:700;color:#303A3C;padding:7px 2px;white-space:nowrap;">${catItemN*4}점 <span style="font-size:11px;color:#9CA3AF;font-weight:400;">(${catItemN}×4)</span></div></div>`
+      : '';
     return `<div style="border:1px solid #D9DEE4;border-radius:11px;padding:14px;margin-bottom:14px;background:#fff;">
-      <div style="display:flex;gap:8px;align-items:flex-end;margin-bottom:12px;padding-bottom:11px;border-bottom:1px solid #EEF0F3;">
+      <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:12px;padding-bottom:11px;border-bottom:1px solid #EEF0F3;">
         <div style="flex:1;min-width:0;">${lbl('카테고리 이름')}<input data-clci="${ci}" data-clcat="catName" value="${_esc(cat.catName||'')}" placeholder="예: 1. 교육 및 훈련에 관한 사항" style="${inSt}font-weight:600;"></div>
-        <div style="width:72px;flex-shrink:0;">${lbl('만점')}<input data-clci="${ci}" data-clcat="maxPoints" value="${_esc(String(cat.maxPoints||''))}" placeholder="28" style="${inSt}padding-left:8px;padding-right:8px;text-align:center;"></div>
+        ${mpDisplay}
         <button onclick="clRemoveCat(${ci})" style="background:none;border:none;cursor:pointer;color:#D20015;font-size:12px;font-weight:600;padding:8px 4px;flex-shrink:0;white-space:nowrap;">카테고리 삭제</button></div>
       ${itemsHtml}
       <button onclick="clAddItem(${ci})" class="pill-btn pill-btn-outline" style="font-size:12px;padding:6px 13px;">+ 항목 추가</button></div>`;
@@ -14087,7 +14092,8 @@ function clSave() {
       return o;
     });
     if(outItems.length) hasItem=true;
-    checklist[cn]={ maxPoints: Number(cat.maxPoints)||0, items: outItems };
+    // v19.27.4: 만점 자동 — grade는 항목수×4(채점함수 기본값과 일치), binary는 미사용(0)
+    checklist[cn]={ maxPoints: (d.scoring==='grade' ? outItems.length*4 : 0), items: outItems };
   }
   if(emptyCat){ showToast('항목이 있는 카테고리는 이름이 필요합니다.', 'error'); return; }
   if(!Object.keys(checklist).length || !hasItem){ showToast('최소 1개 카테고리·항목이 필요합니다.', 'error'); return; }
