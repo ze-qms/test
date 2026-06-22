@@ -1740,7 +1740,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.29.3',
+  version: '19.29.4',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -7252,12 +7252,41 @@ const PERIOD_KEYWORDS = [
   { label: '기상', terms: ['기상'] },
   { label: '운항/비행', terms: ['운항', '비행'] }
 ];
-function _periodKeywordTally(texts) {
-  return PERIOD_KEYWORDS.map(k => {
-    let c = 0;
-    texts.forEach(t => { const s = String(t || ''); if (k.terms.some(term => s.indexOf(term) >= 0)) c++; });
-    return { label: k.label, count: c };
-  }).filter(k => k.count > 0).sort((a, b) => b.count - a.count);
+// v19.29.4: 주제별 "위험도" 가중 — CAR 심각도(Class·Risk Level) + 부적합(U)·취약(저점수) 가중 합산
+function _periodRiskTopics(weak, carItems) {
+  const levelRank = { red: 4, orange: 3, yellow: 2, green: 1 };
+  const classW = { class1: 6, class2: 3, concern: 1.5 };
+  const riskMult = { red: 2, orange: 1.6, yellow: 1.3, green: 1 };
+  const matchT = (txt, t) => { const s = String(txt || ''); return t.terms.some(term => s.indexOf(term) >= 0); };
+  const agg = PERIOD_KEYWORDS.map(k => ({ label: k.label, terms: k.terms, class1: 0, class2: 0, concern: 0, u: 0, low: 0, score: 0, maxLv: 0 }));
+  (carItems || []).forEach(it => {
+    const txt = (it.title || '') + ' ' + (it.category || '');
+    const lv = (typeof riskMeta === 'function' && typeof RISK_MATRIX !== 'undefined') ? (RISK_MATRIX[(riskMeta(it.risk) || {}).code] || null) : null;
+    agg.forEach(t => {
+      if (matchT(txt, t)) {
+        if (it.cls === 'class1') t.class1++; else if (it.cls === 'class2') t.class2++; else if (it.cls === 'concern') t.concern++;
+        t.score += (classW[it.cls] || 1) * (riskMult[lv] || 1);
+        if (lv && levelRank[lv] > t.maxLv) t.maxLv = levelRank[lv];
+      }
+    });
+  });
+  (weak || []).forEach(w => {
+    agg.forEach(t => {
+      if (matchT(w.text, t)) {
+        if (w.binary) { t.u += w.count; t.score += w.count * 2; }
+        else { t.low += w.count; t.score += w.count * 1; }
+      }
+    });
+  });
+  const lvlOrder = { high: 3, midhigh: 2, mid: 1, low: 0 };
+  agg.forEach(t => {
+    if (t.class1 > 0 || t.maxLv === 4) t.level = 'high';
+    else if (t.class2 > 0 || t.maxLv === 3) t.level = 'midhigh';
+    else if (t.concern > 0 || t.u > 0) t.level = 'mid';
+    else t.level = 'low';
+  });
+  // 위험 등급 우선 정렬(높음>상당>주의>경미), 같은 등급 내 가중점수순 → '경미' 다수가 '상당'보다 위로 가는 것 방지
+  return agg.filter(t => t.score > 0).sort((a, b) => (lvlOrder[b.level] - lvlOrder[a.level]) || (b.score - a.score));
 }
 
 function renderPeriodReport() {
@@ -7386,36 +7415,44 @@ function renderPeriodReport() {
     }
     html += `</div>`;
 
-    // 키워드 분석: 취약/부적합 항목 텍스트(발생 빈도 가중) + CAR 제목에서 안전 주제 추출
-    const kwTexts = [];
-    weak.forEach(w => { for (let i = 0; i < w.count; i++) kwTexts.push(w.text); });
-    carItems.forEach(it => { if (it.title) kwTexts.push(it.title); });
-    const kwTally = _periodKeywordTally(kwTexts);
-
-    // 취약/부적합 — 키워드 칩(주제 요약) + 상위 항목 나열
-    html += `<div class="apple-card p-6 mb-4"><h3 style="font-size:16px;font-weight:600;color:#303A3C;margin:0 0 4px;">주요 취약·부적합 항목</h3>`
-      + `<p style="font-size:13px;color:#9EA2A1;margin:0 0 14px;">이 기간 점검·심사에서 자주 발견된 취약 주제와 항목입니다</p>`;
-    if (kwTally.length) {
-      const maxC = kwTally[0].count;
-      html += `<div style="font-size:13px;font-weight:700;color:#303A3C;margin:0 0 8px;">자주 발견된 키워드 <span style="font-size:11px;color:#9EA2A1;font-weight:500;">(취약·부적합·CAR 내용 기준)</span></div>`;
-      html += `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:18px;">` + kwTally.slice(0, 14).map(k => {
-        const ratio = maxC ? k.count / maxC : 0;
-        const color = ratio > 0.66 ? '#D20015' : ratio > 0.33 ? '#C2410C' : '#565A5B';
-        const bg = ratio > 0.66 ? 'rgba(210,0,21,0.10)' : ratio > 0.33 ? 'rgba(245,158,11,0.16)' : 'rgba(158,162,161,0.12)';
-        return `<span style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:6px 13px;border-radius:980px;background:${bg};color:${color};">${_esc(k.label)}<span style="font-size:11px;font-weight:700;opacity:0.85;">${k.count}</span></span>`;
-      }).join('') + `</div>`;
-    }
-    html += `<div style="font-size:13px;font-weight:700;color:#303A3C;margin:0 0 6px;">상위 취약·부적합 항목 <span style="font-size:11px;color:#9EA2A1;font-weight:500;">(지점 2점 이하 + 실/본부·외주 부적합 빈도순)</span></div>`;
-    if (!weak.length) {
-      html += `<div style="font-size:14px;color:#9EA2A1;">집계된 취약·부적합 항목이 없습니다.</div>`;
+    // 위험 주제 분석: CAR 심각도(Class·Risk Level) + 부적합(U)·취약(저점수) 가중 → 위험한 주제 순
+    const riskTopics = _periodRiskTopics(weak, carItems);
+    const LVL = {
+      high: { label: '위험 높음', color: '#D20015', bg: 'rgba(210,0,21,0.12)', dot: '#D20015' },
+      midhigh: { label: '위험 상당', color: '#C2410C', bg: 'rgba(245,158,11,0.16)', dot: '#F59E0B' },
+      mid: { label: '주의', color: '#B45309', bg: 'rgba(234,179,8,0.20)', dot: '#EAB308' },
+      low: { label: '경미', color: '#565A5B', bg: 'rgba(158,162,161,0.14)', dot: '#9EA2A1' }
+    };
+    html += `<div class="apple-card p-6 mb-4"><h3 style="font-size:16px;font-weight:600;color:#303A3C;margin:0 0 4px;">위험 주제 분석</h3>`
+      + `<p style="font-size:13px;color:#9EA2A1;margin:0 0 14px;">CAR 심각도(Class·위험도)와 부적합(U)·취약 항목을 가중해 위험한 주제 순으로 정렬합니다</p>`;
+    if (!riskTopics.length) {
+      html += `<div style="font-size:14px;color:#9EA2A1;">이 기간 위험 주제로 집계된 항목이 없습니다.</div>`;
     } else {
-      html += weak.slice(0, 10).map(w =>
-        `<div style="display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(192,206,209,0.25);">`
-        + `<span style="flex-shrink:0;font-size:11px;font-weight:700;color:#fff;background:${w.binary ? '#F59E0B' : '#D20015'};border-radius:980px;padding:1px 8px;min-width:34px;text-align:center;">${w.count}</span>`
+      html += riskTopics.slice(0, 12).map(t => {
+        const lv = LVL[t.level] || LVL.low;
+        const parts = [];
+        if (t.class1) parts.push(`<span style="color:#D20015;font-weight:600;">Class 1 ${t.class1}</span>`);
+        if (t.class2) parts.push(`<span style="color:#F59E0B;font-weight:600;">Class 2 ${t.class2}</span>`);
+        if (t.concern) parts.push(`<span style="color:#CA8A04;">Concern ${t.concern}</span>`);
+        if (t.u) parts.push(`<span style="color:#C2410C;">부적합 ${t.u}</span>`);
+        if (t.low) parts.push(`<span style="color:#9EA2A1;">취약 ${t.low}</span>`);
+        return `<div style="display:flex;gap:10px;align-items:center;padding:9px 0;border-bottom:1px solid rgba(192,206,209,0.25);">`
+          + `<span style="flex-shrink:0;display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:3px 10px;border-radius:980px;background:${lv.bg};color:${lv.color};min-width:78px;justify-content:center;"><span style="width:7px;height:7px;border-radius:50%;background:${lv.dot};"></span>${lv.label}</span>`
+          + `<span style="flex-shrink:0;font-size:13px;font-weight:600;color:#303A3C;min-width:0;">${_esc(t.label)}</span>`
+          + `<span style="font-size:11px;color:#565A5B;flex:1;min-width:0;text-align:right;">${parts.join(' · ')}</span></div>`;
+      }).join('');
+    }
+    // 보조: 상위 취약·부적합 항목 (개별 항목 확인용, 부적합 우선)
+    const weakSorted = weak.slice().sort((a, b) => (b.binary - a.binary) || (b.count - a.count));
+    if (weakSorted.length) {
+      html += `<div style="font-size:13px;font-weight:700;color:#303A3C;margin:18px 0 6px;">개별 항목 <span style="font-size:11px;color:#9EA2A1;font-weight:500;">(부적합 우선 · 상위 8)</span></div>`;
+      html += weakSorted.slice(0, 8).map(w =>
+        `<div style="display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(192,206,209,0.2);">`
+        + `<span style="flex-shrink:0;font-size:11px;font-weight:700;color:#fff;background:${w.binary ? '#D20015' : '#F59E0B'};border-radius:980px;padding:1px 8px;min-width:34px;text-align:center;">${w.count}</span>`
         + `<span style="flex-shrink:0;font-size:11px;font-weight:600;color:#0067C4;min-width:42px;">${_esc(typeLbl(w.type))}</span>`
         + `<span style="flex-shrink:0;font-size:11px;color:#9EA2A1;">${_esc(w.id)}</span>`
         + `<span style="font-size:13px;color:#303A3C;flex:1;min-width:0;">${_esc(w.text)}</span>`
-        + `<span style="flex-shrink:0;font-size:10px;color:#9EA2A1;">${w.binary ? '부적합' : '2점↓'}</span></div>`
+        + `<span style="flex-shrink:0;font-size:10px;color:${w.binary ? '#D20015' : '#9EA2A1'};">${w.binary ? '부적합' : '2점↓'}</span></div>`
       ).join('');
     }
     html += `</div>`;
@@ -7434,9 +7471,9 @@ function renderPeriodReport() {
     txt.push(`- CAR 발행: ${carItems.length}건 (Class1 ${clsCount.class1 || 0} · Class2 ${clsCount.class2 || 0} · Concern ${clsCount.concern || 0})`);
     txt.push('');
     if (planTotal) txt.push(`■ 진척: 계획 ${planTotal} / 완료 ${statusTally.completed} · 진행 중 ${statusTally.in_progress} · 예정 ${statusTally.planned} · 지연/미완료 ${statusTally.delayed}`);
-    if (kwTally.length) {
+    if (riskTopics.length) {
       txt.push('');
-      txt.push(`■ 자주 발견된 키워드: ${kwTally.slice(0, 10).map(k => k.label + '(' + k.count + ')').join(', ')}`);
+      txt.push(`■ 위험 주제 (위험도순): ${riskTopics.slice(0, 8).map(t => { const ll = { high: '높음', midhigh: '상당', mid: '주의', low: '경미' }[t.level] || ''; return t.label + '[' + ll + ']'; }).join(', ')}`);
     }
     if (weak.length) {
       txt.push('');
