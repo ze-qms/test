@@ -1740,7 +1740,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.29.0',
+  version: '19.29.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -9238,44 +9238,13 @@ function toggleDivAnalysisDetail(id) {
   }
 }
 
-// v19.27.7: 실/본부 부적합(U) 항목 디테일 — 부서·점검표별 U 항목 목록 + 부적합 차트
+// v19.29.1: 실/본부 부적합(U) 취약 항목 분석 — 지점 취약항목과 동일한 카테고리→항목 드릴다운 (적합률 기준)
 function renderDivNciDetail(data) {
   const box = document.getElementById('divNciInner');
   if (!box) return;
   const { yearData, year } = data;
   const typeLbl = (t) => { const r = CHECKLIST_REGISTRY[t]; return r ? r.name.replace('품질심사', '품질').replace('안전감사', '안전').replace('비행안전문서시스템', 'FSDS') : t; };
-  const byDiv = {};
-  let total = 0;
-  yearData.forEach(d => {
-    const div = d.division || d.station;
-    const cl = getChecklist(d.type);
-    const us = [];
-    for (const [cat, cd] of Object.entries(cl)) {
-      (cd.items || []).forEach(it => {
-        const v = d.scores ? d.scores[it.id] : null;
-        if (v === 'U' || v === 'NO' || v === 'N') us.push({ cat, id: it.id, text: it.text || '', type: d.type });
-      });
-    }
-    if (us.length) { (byDiv[div] = byDiv[div] || []).push(...us); total += us.length; }
-  });
 
-  // v19.29.0: 취약 항목 분석 — 항목별 부적합 빈도(전 부서 합산) + 재발 부적합(전년 대비)
-  const itemAgg = {}; // key: type|id
-  yearData.forEach(d => {
-    const cl = getChecklist(d.type);
-    for (const [, cd] of Object.entries(cl)) {
-      (cd.items || []).forEach(it => {
-        const v = d.scores ? d.scores[it.id] : null;
-        if (v === 'U' || v === 'NO' || v === 'N') {
-          const k = d.type + '|' + it.id;
-          if (!itemAgg[k]) itemAgg[k] = { type: d.type, id: it.id, text: it.text || '', count: 0, divs: new Set() };
-          itemAgg[k].count++;
-          itemAgg[k].divs.add(d.division || d.station);
-        }
-      });
-    }
-  });
-  const weakItems = Object.values(itemAgg).sort((a, b) => b.count - a.count || b.divs.size - a.divs.size);
   // 전년(같은 기간) 실/본부 부적합 항목 집합 → 재발 판정
   const prevU = new Set();
   applyAnalysisPeriod(allData.filter(d => d.auditCategory === 'division' && d.year == year - 1)).forEach(d => {
@@ -9287,48 +9256,77 @@ function renderDivNciDetail(data) {
       });
     }
   });
-  const recurring = weakItems.filter(w => prevU.has(w.type + '|' + w.id));
 
-  let html = `<div class="apple-card p-6"><h3 style="font-size:17px;font-weight:600;letter-spacing:-0.28px;color:#303A3C;margin:0 0 4px;">부적합(U) 취약 항목 분석 <span style="color:#9EA2A1;font-weight:500;font-size:13px;">${analysisPeriodLabel()} · ${total}건</span></h3><p style="font-size:13px;color:#9EA2A1;margin:0 0 14px;">실/본부 점검표에서 부적합(U)으로 평가된 항목을 빈도·재발 기준으로 분석합니다</p>`;
+  // 카테고리(점검표 유형별)·항목별 적합률 집계 (S=적합 / U=부적합, NA 제외)
+  const catAgg = {}; // key: type|||cat
+  let totalU = 0;
+  yearData.forEach(d => {
+    const div = d.division || d.station;
+    const cl = getChecklist(d.type);
+    for (const [catName, cd] of Object.entries(cl)) {
+      const ckey = d.type + '|||' + catName;
+      if (!catAgg[ckey]) catAgg[ckey] = { type: d.type, cat: catName, s: 0, u: 0, items: {} };
+      (cd.items || []).forEach(it => {
+        const v = d.scores ? d.scores[it.id] : null;
+        const it0 = catAgg[ckey].items[it.id] || (catAgg[ckey].items[it.id] = { id: it.id, text: it.text || '', s: 0, u: 0, uDivs: [] });
+        if (v === 'S' || v === 'YES' || v === 'Y') { catAgg[ckey].s++; it0.s++; }
+        else if (v === 'U' || v === 'NO' || v === 'N') { catAgg[ckey].u++; it0.u++; totalU++; it0.uDivs.push(div); }
+      });
+    }
+  });
+  // 적합률 계산 + 정렬 (적합률 낮은 순 = 취약한 순). 적용 항목(s+u>0) 없는 카테고리 제외.
+  const cats = Object.values(catAgg)
+    .map(c => { const ap = c.s + c.u; return Object.assign(c, { applicable: ap, rate: ap > 0 ? (c.s / ap * 100) : null }); })
+    .filter(c => c.applicable > 0)
+    .sort((a, b) => (a.rate - b.rate) || (b.u - a.u));
+
+  let html = `<div class="apple-card p-6"><h3 style="font-size:17px;font-weight:600;letter-spacing:-0.28px;color:#303A3C;margin:0 0 4px;">부적합(U) 취약 항목 분석 <span style="color:#9EA2A1;font-weight:500;font-size:13px;">${analysisPeriodLabel()} · 부적합 ${totalU}건</span></h3><p style="font-size:13px;color:#9EA2A1;margin:0 0 14px;">점검표 카테고리를 클릭하면 항목별 적합률·부적합 부서를 확인할 수 있습니다 (적합률 낮은 순)</p>`;
   html += `<div style="margin-bottom:16px;"><div style="font-size:13px;color:#565A5B;margin-bottom:6px;font-weight:600;">부서별 부적합 건수</div><div style="position:relative;height:220px;"><canvas id="divRiskChart"></canvas></div></div>`;
 
-  if (total) {
-    // 전사 취약 항목 (빈도순)
-    html += `<div style="font-size:14px;font-weight:700;color:#303A3C;margin:18px 0 6px;">전사 취약 항목 <span style="font-size:12px;color:#9EA2A1;font-weight:500;">여러 부서에서 반복 부적합 (빈도순)</span></div>`;
-    html += weakItems.slice(0, 12).map(w => {
-      const recur = prevU.has(w.type + '|' + w.id);
-      return `<div style="display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(192,206,209,0.25);">`
-        + `<span style="flex-shrink:0;font-size:11px;font-weight:700;color:#fff;background:#F59E0B;border-radius:980px;padding:1px 8px;min-width:34px;text-align:center;">${w.count}건</span>`
-        + `<span style="flex-shrink:0;font-size:11px;font-weight:600;color:#0067C4;min-width:42px;">${_esc(typeLbl(w.type))}</span>`
-        + `<span style="flex-shrink:0;font-size:11px;color:#9EA2A1;">${_esc(w.id)}</span>`
-        + `<span style="font-size:13px;color:#303A3C;flex:1;min-width:0;">${_esc(w.text)}${recur ? ' <span style="font-size:10px;color:#D20015;font-weight:700;">[재발]</span>' : ''}</span>`
-        + `<span style="flex-shrink:0;font-size:11px;color:#9EA2A1;">${w.divs.size}개 부서</span></div>`;
-    }).join('');
-    // 재발 부적합 항목
-    if (recurring.length) {
-      html += `<div style="font-size:14px;font-weight:700;color:#D20015;margin:18px 0 6px;">재발 부적합 항목 <span style="font-size:12px;color:#9EA2A1;font-weight:500;">전년에도 부적합 (${recurring.length}건)</span></div>`;
-      html += recurring.slice(0, 12).map(w =>
-        `<div style="display:flex;gap:8px;align-items:baseline;padding:6px 0;border-bottom:1px solid rgba(210,0,21,0.15);">`
-        + `<span style="flex-shrink:0;font-size:11px;font-weight:600;color:#0067C4;min-width:42px;">${_esc(typeLbl(w.type))}</span>`
-        + `<span style="flex-shrink:0;font-size:11px;color:#9EA2A1;">${_esc(w.id)}</span>`
-        + `<span style="font-size:13px;color:#303A3C;flex:1;min-width:0;">${_esc(w.text)}</span>`
-        + `<span style="flex-shrink:0;font-size:11px;color:#D20015;">올해 ${w.count}건</span></div>`
-      ).join('');
-    }
-    html += `<div style="font-size:14px;font-weight:700;color:#303A3C;margin:18px 0 6px;">부서별 부적합 항목</div>`;
-  }
-
-  if (!total) {
-    html += `<div style="color:#9EA2A1;font-size:14px;text-align:center;padding:24px;">부적합(U) 항목이 없습니다.</div>`;
+  if (!cats.length) {
+    html += `<div style="color:#9EA2A1;font-size:14px;text-align:center;padding:24px;">집계할 점검 데이터가 없습니다.</div>`;
   } else {
-    Object.keys(byDiv).forEach(div => {
-      html += `<div style="font-size:14px;font-weight:600;color:#303A3C;margin:14px 0 6px;">${_esc(div)} <span style="font-size:12px;color:#F59E0B;font-weight:500;">${byDiv[div].length}건</span></div>`;
-      byDiv[div].forEach(u => {
-        html += `<div style="display:flex;gap:8px;align-items:baseline;padding:5px 0;border-bottom:1px solid rgba(192,206,209,0.25);">`
-          + `<span style="flex-shrink:0;font-size:11px;font-weight:600;color:#0067C4;min-width:48px;">${_esc(typeLbl(u.type))}</span>`
-          + `<span style="flex-shrink:0;font-size:11px;color:#9EA2A1;">${_esc(u.id)}</span>`
-          + `<span style="font-size:13px;color:#303A3C;flex:1;min-width:0;">${_esc(u.text)}</span></div>`;
+    const lowestRate = cats[0].rate;
+    cats.forEach((c, ci) => {
+      const color = c.rate >= 90 ? '#22C55E' : c.rate >= 70 ? '#F59E0B' : '#D20015';
+      const isWeakest = c.rate === lowestRate && c.rate < 90;
+      const alertBadge = isWeakest ? '<span class="badge-pill" style="background:rgba(210,0,21,0.15);color:#D20015;margin-left:8px;">주의</span>' : '';
+      html += `<div class="apple-card mb-3" style="padding:14px;cursor:pointer;transition:all 0.15s ease;${isWeakest ? 'border-left:3px solid #D20015;' : ''}" onclick="toggleWeakDetail('divWeakDetail_${ci}',this)">`;
+      // 카테고리 헤더
+      html += `<div class="flex justify-between items-center">`;
+      html += `<div style="flex:1;min-width:0;"><span style="font-size:11px;font-weight:600;color:#0067C4;margin-right:6px;">${_esc(typeLbl(c.type))}</span><span style="font-size:13px;font-weight:600;color:#303A3C;">${_esc(c.cat)}</span>${alertBadge}</div>`;
+      html += `<div class="flex items-center gap-3">`;
+      html += `<div style="display:flex;align-items:center;gap:6px;">`;
+      html += `<div style="width:80px;background:#f9f9fb;border-radius:4px;height:6px;"><div style="height:6px;border-radius:4px;width:${c.rate.toFixed(0)}%;background:${color};"></div></div>`;
+      html += `<span style="font-size:14px;font-weight:600;color:${color};min-width:44px;text-align:right;">${c.rate.toFixed(0)}%</span>`;
+      html += `</div>`;
+      html += `<svg class="w-4 h-4" style="color:#9EA2A1;transition:transform 0.2s;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>`;
+      html += `</div></div>`;
+      // 요약 (적합/부적합 건수)
+      html += `<div class="flex gap-4 mt-2" style="font-size:11px;color:#9EA2A1;">`
+        + `<span>적합 <strong style="color:#303A3C;">${c.s}</strong></span>`
+        + `<span>부적합 <strong style="color:${c.u ? '#D20015' : '#303A3C'};">${c.u}</strong></span></div>`;
+      // 항목 드릴다운 (적합률 낮은 순)
+      const items = Object.values(c.items).map(it => { const ap = it.s + it.u; return Object.assign(it, { applicable: ap, rate: ap > 0 ? (it.s / ap * 100) : null }); })
+        .filter(it => it.applicable > 0).sort((a, b) => (a.rate - b.rate) || (b.u - a.u));
+      html += `<div id="divWeakDetail_${ci}" class="hidden" style="margin-top:12px;border-top:1px solid rgba(192,206,209,0.3);padding-top:12px;">`;
+      html += `<div style="font-size:12px;font-weight:600;color:#9EA2A1;margin-bottom:8px;">항목별 적합률 (낮은 순)</div>`;
+      items.forEach(it => {
+        const icolor = it.rate >= 90 ? '#22C55E' : it.rate >= 70 ? '#F59E0B' : '#D20015';
+        const recur = prevU.has(c.type + '|' + it.id);
+        html += `<div style="padding:6px 0;border-bottom:1px solid rgba(192,206,209,0.1);">`;
+        html += `<div class="flex justify-between items-center">`;
+        html += `<span style="font-size:12px;color:#303A3C;flex:1;word-break:keep-all;min-width:0;"><strong>${_esc(it.id)}</strong> ${_esc(it.text)}${recur ? ' <span style="font-size:10px;color:#D20015;font-weight:700;">[재발]</span>' : ''}</span>`;
+        html += `<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">`;
+        html += `<div style="width:50px;background:#f9f9fb;border-radius:3px;height:4px;"><div style="height:4px;border-radius:3px;width:${it.rate.toFixed(0)}%;background:${icolor};"></div></div>`;
+        html += `<span style="font-size:12px;font-weight:600;color:${icolor};min-width:38px;text-align:right;">${it.rate.toFixed(0)}%</span>`;
+        html += `</div></div>`;
+        if (it.uDivs.length) {
+          html += `<div style="font-size:11px;color:#D20015;margin-top:2px;padding-left:4px;">▸ 부적합: ${it.uDivs.map(_esc).join(', ')}</div>`;
+        }
+        html += `</div>`;
       });
+      html += `</div></div>`;
     });
   }
   html += `</div>`;
