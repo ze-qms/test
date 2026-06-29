@@ -1595,7 +1595,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.33.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.33.1</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1769,7 +1769,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.33.0',
+  version: '19.33.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -6426,6 +6426,9 @@ function renderScoreViewTable() {
 function renderGroupReadOnlyDetail(gIdx, group) {
   const anyRecord = Object.values(group.types).find(e => e.record)?.record;
   let html = '';
+  // v19.33.1: 수정 버튼은 배정 심사원+admin, 삭제 버튼은 admin만 노출
+  const _canEdit = canEditAssessment(group.year, group.station);
+  const _isAdmin = hasRole('admin');
 
   // 공통 심사 정보 (allData 우선, 없으면 scheduleData에서 보완)
   const schedItem = scheduleData.find(s => s.year == group.year && s.station === group.station);
@@ -6441,7 +6444,7 @@ function renderGroupReadOnlyDetail(gIdx, group) {
     html += `<div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">`;
     html += `<div class="flex gap-4"><div><span style="font-size:12px;color:#9EA2A1;">심사원</span><div style="font-size:14px;font-weight:600;color:#303A3C;">${auditorDisplay}</div></div>`;
     html += `<div><span style="font-size:12px;color:#9EA2A1;">심사일</span><div style="font-size:14px;font-weight:600;color:#303A3C;">${dateDisplay}</div></div></div>`;
-    html += `<button onclick="event.stopPropagation();startGroupEditCommon(${gIdx})" class="pill-btn pill-btn-outline" style="border-color:#D20015;color:#D20015;font-size:13px;flex-shrink:0;">공통 정보 수정</button>`;
+    if (_canEdit) html += `<button onclick="event.stopPropagation();startGroupEditCommon(${gIdx})" class="pill-btn pill-btn-outline" style="border-color:#D20015;color:#D20015;font-size:13px;flex-shrink:0;">공통 정보 수정</button>`;
     html += `</div></div>`;
   }
 
@@ -6490,8 +6493,8 @@ function renderGroupReadOnlyDetail(gIdx, group) {
         const overallStyle = result.complianceRate >= 90 ? 'background:rgba(34,197,94,0.15);color:#22C55E' : result.complianceRate >= 70 ? 'background:rgba(245,158,11,0.15);color:#F59E0B' : 'background:rgba(210,0,21,0.15);color:#D20015';
         html += `<div><span style="font-size:11px;color:#9EA2A1;">적합률</span><span class="badge-pill" style="${overallStyle};font-size:13px;margin-left:4px;">${result.complianceRate.toFixed(1)}%</span></div>`;
         html += `<div class="flex gap-1">`;
-        html += `<button onclick="event.stopPropagation();startGroupTypeEdit(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#D20015;font-size:12px;cursor:pointer;padding:8px 10px;">수정</button>`;
-        html += `<button onclick="event.stopPropagation();deleteGroupType(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#565A5B;font-size:12px;cursor:pointer;padding:8px 10px;">삭제</button>`;
+        if (_canEdit) html += `<button onclick="event.stopPropagation();startGroupTypeEdit(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#D20015;font-size:12px;cursor:pointer;padding:8px 10px;">수정</button>`;
+        if (_isAdmin) html += `<button onclick="event.stopPropagation();deleteGroupType(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#565A5B;font-size:12px;cursor:pointer;padding:8px 10px;">삭제</button>`;
         html += `</div></div>`;
         html += `<div style="font-size:11px;color:#6366F1;text-align:center;margin-top:6px;">S:${result.yesCount} U:${result.noCount} NA:${result.naCount}</div>`;
         html += `</div>`;
@@ -6511,8 +6514,8 @@ function renderGroupReadOnlyDetail(gIdx, group) {
         html += `<div class="flex justify-between items-center">`;
         html += `<div><span style="font-size:11px;color:#9EA2A1;">전체 평균</span><span class="badge-pill" style="${avgBadgeStyle(result.overallAverage)};font-size:13px;margin-left:4px;">${result.overallAverage.toFixed(2)}</span></div>`;
         html += `<div class="flex gap-1">`;
-        html += `<button onclick="event.stopPropagation();startGroupTypeEdit(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#D20015;font-size:12px;cursor:pointer;padding:8px 10px;">수정</button>`;
-        html += `<button onclick="event.stopPropagation();deleteGroupType(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#565A5B;font-size:12px;cursor:pointer;padding:8px 10px;">삭제</button>`;
+        if (_canEdit) html += `<button onclick="event.stopPropagation();startGroupTypeEdit(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#D20015;font-size:12px;cursor:pointer;padding:8px 10px;">수정</button>`;
+        if (_isAdmin) html += `<button onclick="event.stopPropagation();deleteGroupType(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#565A5B;font-size:12px;cursor:pointer;padding:8px 10px;">삭제</button>`;
         html += `</div></div>`;
         html += `<div style="font-size:11px;color:#D20015;text-align:center;margin-top:6px;">상세보기 ></div>`;
         html += `</div>`;
@@ -6622,6 +6625,8 @@ function startGroupEditCommon(gIdx) {
   const groups = getViewGroups();
   const group = groups[gIdx];
   if (!group) return;
+  // v19.33.1: 점검표 공통정보 수정은 배정 심사원 + admin만
+  if (!canEditAssessment(group.year, group.station)) { showToast(assignmentDeniedMessage(group.year, group.station), 'error'); return; }
   const anyRecord = Object.values(group.types).find(e => e.record)?.record;
   if (!anyRecord) return;
 
@@ -6653,6 +6658,8 @@ function saveGroupCommon(gIdx) {
   const groups = getViewGroups();
   const group = groups[gIdx];
   if (!group) return;
+  // v19.33.1: 점검표 공통정보 저장은 배정 심사원 + admin만
+  if (!canEditAssessment(group.year, group.station)) { showToast(assignmentDeniedMessage(group.year, group.station), 'error'); return; }
 
   const auditorHidden = document.getElementById(`groupAuditorPicker_${gIdx}_value`);
   const auditor = auditorHidden ? auditorHidden.value : '';
@@ -6700,6 +6707,8 @@ function startGroupTypeEdit(gIdx, type) {
   const groups = getViewGroups();
   const group = groups[gIdx];
   if (!group) return;
+  // v19.33.1: 점검표 수정은 배정 심사원 + admin만
+  if (!canEditAssessment(group.year, group.station)) { showToast(assignmentDeniedMessage(group.year, group.station), 'error'); return; }
   const entry = group.types[type];
   if (!entry || !entry.record) return;
 
@@ -6919,6 +6928,8 @@ function toggleViewDetail(id) {
 function startEditRecord(idx) {
   const entry = viewEntries[idx];
   if (!entry || !entry.record) return;
+  // v19.33.1: 점검표 수정은 배정 심사원 + admin만
+  if (!canEditAssessment(entry.year, entry.station)) { showToast(assignmentDeniedMessage(entry.year, entry.station), 'error'); return; }
   editingScores = { ...entry.record.scores };
   const container = document.getElementById(`viewDetail_${idx}`);
   container.innerHTML = renderEditDetail(idx, entry);
@@ -6937,6 +6948,8 @@ function cancelEdit(idx) {
 function saveEdit(idx) {
   const entry = viewEntries[idx];
   if (!entry || !entry.record) return;
+  // v19.33.1: 점검표 저장은 배정 심사원 + admin만
+  if (!canEditAssessment(entry.year, entry.station)) { showToast(assignmentDeniedMessage(entry.year, entry.station), 'error'); return; }
 
   const auditorHidden = document.getElementById(`editAuditorPicker_${idx}_value`);
   const auditor = auditorHidden ? auditorHidden.value : '';
@@ -10939,7 +10952,7 @@ function showScheduleStation(scheduleId) {
 
   // Render auditor picker after DOM is updated
   setTimeout(() => {
-    renderAuditorPicker('scheduleAuditorPicker', item.auditors || '');
+    renderAuditorPicker('scheduleAuditorPicker', item.auditors || '', !hasRole('admin')); // v19.33.1: 일정 심사원 편집은 admin만
   }, 0);
 }
 
@@ -11821,7 +11834,7 @@ function importAuditorExcel(event) {
 // ============================================================================
 // AUDITOR PICKER (for input/edit forms)
 // ============================================================================
-function renderAuditorPicker(containerId, currentValue) {
+function renderAuditorPicker(containerId, currentValue, readonly) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const selected = (currentValue || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -11832,22 +11845,24 @@ function renderAuditorPicker(containerId, currentValue) {
   selected.forEach(name => {
     html += `<span style="display:inline-flex;align-items:center;gap:4px;background:#f9f9fb;border-radius:980px;padding:4px 12px;font-size:13px;color:#303A3C;">`;
     html += `${name}`;
-    html += `<button onclick="removeAuditorTag('${containerId}','${name}')" style="background:none;border:none;color:#D20015;font-size:16px;cursor:pointer;padding:8px;margin:-4px -6px -4px -2px;line-height:1;">×</button>`;
+    if (!readonly) html += `<button onclick="removeAuditorTag('${containerId}','${name}')" style="background:none;border:none;color:#D20015;font-size:16px;cursor:pointer;padding:8px;margin:-4px -6px -4px -2px;line-height:1;">×</button>`;
     html += `</span>`;
   });
   html += '</div>';
-  // Add dropdown
-  html += '<div class="flex gap-2">';
-  html += `<select id="${containerId}_select" class="apple-input" style="flex:1;">`;
-  html += '<option value="">심사원 선택</option>';
-  auditorList.forEach(a => {
-    if (!selected.includes(a.name)) {
-      html += `<option value="${a.name}">${a.name} (${a.team})</option>`;
-    }
-  });
-  html += '</select>';
-  html += `<button onclick="addAuditorTag('${containerId}')" class="pill-btn pill-btn-outline" style="padding:6px 14px;font-size:13px;flex-shrink:0;">+ 추가</button>`;
-  html += '</div>';
+  // Add dropdown — v19.33.1: readonly면 심사원 선택/추가 토글 비표시 (비admin 일정 편집 차단)
+  if (!readonly) {
+    html += '<div class="flex gap-2">';
+    html += `<select id="${containerId}_select" class="apple-input" style="flex:1;">`;
+    html += '<option value="">심사원 선택</option>';
+    auditorList.forEach(a => {
+      if (!selected.includes(a.name)) {
+        html += `<option value="${a.name}">${a.name} (${a.team})</option>`;
+      }
+    });
+    html += '</select>';
+    html += `<button onclick="addAuditorTag('${containerId}')" class="pill-btn pill-btn-outline" style="padding:6px 14px;font-size:13px;flex-shrink:0;">+ 추가</button>`;
+    html += '</div>';
+  }
   html += `<input type="hidden" id="${containerId}_value" value="${selected.join(', ')}">`;
 
   container.innerHTML = html;
