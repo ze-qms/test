@@ -1595,7 +1595,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.32.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.33.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1769,7 +1769,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.32.0',
+  version: '19.33.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -5867,7 +5867,8 @@ function saveAssessment() {
   unsavedChanges = false;
 
   // 심사 일정 데이터에도 동기화
-  const schedItem = scheduleData.find(s => s.year == year && s.station === station);
+  // v19.33.0: 점검표 저장 시 일정 동기화는 admin만 (일반 심사원의 일정 자가변경 우회 차단)
+  const schedItem = hasRole('admin') ? scheduleData.find(s => s.year == year && s.station === station) : null;
   if (schedItem) {
     if (auditor) schedItem.auditors = auditor;
     if (auditDateStart) schedItem.dateStart = auditDateStart;
@@ -6677,7 +6678,8 @@ function saveGroupCommon(gIdx) {
   saveAllData();
 
   // 심사 일정 데이터에도 동기화
-  const schedItem = scheduleData.find(s => s.year == group.year && s.station === group.station);
+  // v19.33.0: 점수조회 그룹 저장 시 일정 동기화도 admin만
+  const schedItem = hasRole('admin') ? scheduleData.find(s => s.year == group.year && s.station === group.station) : null;
   if (schedItem) {
     schedItem.auditors = auditor;
     schedItem.dateStart = dateStart;
@@ -10270,10 +10272,12 @@ function renderSchedule() {
     html += `<button onclick="window._scheduleViewYear=${y};renderSchedule();" style="border:none;border-radius:980px;padding:6px 16px;font-size:13px;font-weight:500;cursor:pointer;transition:all 0.2s;letter-spacing:-0.224px;background:${isActive?'#D20015':'transparent'};color:${isActive?'#fff':'#565A5B'};">${y}년</button>`;
   });
   html += '</div></div>';
-  html += '<div style="display:flex;gap:8px;flex-shrink:0;">';
-  html += '<button onclick="setSchedulePhase(4)" class="pill-btn" style="background:#fff;color:#303A3C;border:1px solid #E5E7EB;">\u2195 \uc77c\uc815 \ubcc0\uacbd</button>';
-  html += '<button onclick="showAddScheduleForm()" class="pill-btn pill-btn-primary">+ \uc77c\uc815 \ucd94\uac00</button>';
-  html += '</div>';
+  if (hasRole('admin')) { // v19.33.0: \uc77c\uc815 \ucd94\uac00/\ubcc0\uacbd\uc740 admin \uc804\uc6a9
+    html += '<div style="display:flex;gap:8px;flex-shrink:0;">';
+    html += '<button onclick="setSchedulePhase(4)" class="pill-btn" style="background:#fff;color:#303A3C;border:1px solid #E5E7EB;">\u2195 \uc77c\uc815 \ubcc0\uacbd</button>';
+    html += '<button onclick="showAddScheduleForm()" class="pill-btn pill-btn-primary">+ \uc77c\uc815 \ucd94\uac00</button>';
+    html += '</div>';
+  }
   html += '</div>';
 
   // Summary stats — v19.31.0: scopedSchedule 기준 (실/본부 제외분 반영)
@@ -10528,6 +10532,7 @@ function _revertScheduleReorderSilently() {
   _clearScheduleReorderSnapshot();
 }
 function saveScheduleReorderChanges() {
+  if (!requireRole('admin')) return; // v19.33.0: 일정 재정렬(드래그) 저장은 admin 전용
   if (!window._scheduleReorderDirty) { setSchedulePhase(1); return; }
   try {
     saveSchedule();
@@ -10560,6 +10565,7 @@ function remapYearMonth(dateStr, year, newMonth) {
   return `${year}-${pad(newMonth)}-${pad(day)}`;
 }
 function renderScheduleReorder() {
+  if (!hasRole('admin')) { setSchedulePhase(1); return; } // v19.33.0: 일정 변경 화면은 admin 전용
   const currentYear = new Date().getFullYear();
   if (typeof window._scheduleViewYear === 'undefined') window._scheduleViewYear = currentYear;
   const scheduleYear = window._scheduleViewYear;
@@ -10718,6 +10724,7 @@ function initScheduleDragDrop() {
   });
 }
 function handleChipDrop(evt) {
+  if (!hasRole('admin')) return; // v19.33.0: 일정 드래그 이동은 admin 전용
   const newMonth = parseInt(evt.to && evt.to.dataset ? evt.to.dataset.month : '-1', 10);
   const id = evt.item && evt.item.dataset ? evt.item.dataset.id : null;
   if (!id || !Number.isFinite(newMonth) || newMonth < 0 || newMonth > 12) {
@@ -10827,12 +10834,14 @@ function showScheduleStation(scheduleId) {
   html += `<input type="text" id="scheduleNote" class="apple-input" value="${item.note || ''}" placeholder="비고 사항 입력">`;
   html += '</div>';
 
-  // Save button
-  html += '<div class="flex gap-3">';
-  html += `<button onclick="saveScheduleItem('${scheduleId}')" class="pill-btn pill-btn-primary">저장</button>`;
-  html += `<button onclick="scheduleGoBack();" class="pill-btn pill-btn-outline">취소</button>`;
-  html += `<button onclick="deleteScheduleItem('${scheduleId}')" class="pill-btn" style="background:#565A5B;color:#fff;">일정 삭제</button>`;
-  html += '</div>';
+  // Save button — v19.33.0: 일정 편집(저장/삭제)은 admin 전용. 비admin은 보기만.
+  if (hasRole('admin')) {
+    html += '<div class="flex gap-3">';
+    html += `<button onclick="saveScheduleItem('${scheduleId}')" class="pill-btn pill-btn-primary">저장</button>`;
+    html += `<button onclick="scheduleGoBack();" class="pill-btn pill-btn-outline">취소</button>`;
+    html += `<button onclick="deleteScheduleItem('${scheduleId}')" class="pill-btn" style="background:#565A5B;color:#fff;">일정 삭제</button>`;
+    html += '</div>';
+  }
   html += '</div>';
 
   // Score Summary Card
@@ -10934,6 +10943,7 @@ function showScheduleStation(scheduleId) {
 }
 
 function saveScheduleItem(scheduleId) {
+  if (!requireRole('admin')) return; // v19.33.0: 일정 수정은 admin 전용
   const item = scheduleData.find(s => s.id === scheduleId);
   if (!item) { showToast('일정을 찾을 수 없습니다.', 'error'); return; }
 
@@ -11004,10 +11014,12 @@ function saveScheduleItem(scheduleId) {
 }
 
 function showAddScheduleForm() {
+  if (!requireRole('admin')) return; // v19.33.0: 일정 추가 진입은 admin 전용
   setSchedulePhase(3);
 }
 
 function saveNewSchedule() {
+  if (!requireRole('admin')) return; // v19.33.0: 일정 추가는 admin 전용
   const stationSelect = document.getElementById('newScheduleStation').value;
   const newStationName = document.getElementById('newStationName');
   const newStationInput = newStationName ? newStationName.value.trim() : '';
@@ -11073,6 +11085,7 @@ function saveNewSchedule() {
 }
 
 function deleteScheduleItem(scheduleId) {
+  if (!requireRole('admin')) return; // v19.33.0: 일정 삭제는 admin 전용
   const item = scheduleData.find(s => s.id === scheduleId);
   if (!item) return;
   if (!confirm(`${item.displayName || item.station} (${item.month === 0 ? '미정' : item.month + '월'}) 일정을 삭제하시겠습니까?`)) return;
@@ -11152,6 +11165,7 @@ function toggleNewStationForm() {
 }
 
 function toggleTbdSchedule() {
+  if (!requireRole('admin')) return; // v19.33.0: 일정 추가 폼 컨트롤은 admin 전용
   const statusSel = document.getElementById('newScheduleStatus');
   const isTbd = !!statusSel && statusSel.value === 'tbd';
   ['newScheduleDateStart', 'newScheduleDateEnd'].forEach(elId => {
@@ -11165,6 +11179,7 @@ function toggleTbdSchedule() {
 }
 
 function renderAddScheduleForm() {
+  if (!hasRole('admin')) { setSchedulePhase(1); return; } // v19.33.0: 일정 추가 화면은 admin 전용
   const statusLabels = getScheduleStatusLabels();
   let html = '';
 
