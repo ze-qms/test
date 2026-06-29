@@ -4497,7 +4497,8 @@ function normalizeScheduleTargets() {
       modified = true;
     }
   });
-  if (modified) saveSchedule();
+  // v19.33.0: 일정 Firebase 저장은 admin만 (Rules admin 전용화에 따른 auditor PERMISSION_DENIED 회피). 비admin은 로컬 정규화만.
+  if (modified && (typeof hasRole !== 'function' || hasRole('admin'))) saveSchedule();
 }
 
 function saveSchedule() {
