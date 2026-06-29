@@ -1595,7 +1595,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.33.1</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.34.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1769,7 +1769,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.33.1',
+  version: '19.34.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -4910,6 +4910,17 @@ function saveAllData() {
   firebaseSaveAllData();
 }
 
+// v19.34.0: 단일 record 저장/삭제 — localStorage는 전체 직렬화(저렴), Firebase는 해당 record만 갱신.
+// 작성/수정/삭제 경로에서 saveAllData() 대신 사용하여 동시 편집 시 다른 record 손실을 막는다.
+function saveOneRecord(record) {
+  SafeStorage.set(STORAGE_KEY, allData);
+  return firebaseSaveAssessmentRecord(record);
+}
+function deleteOneRecord(record) {
+  SafeStorage.set(STORAGE_KEY, allData);
+  return firebaseDeleteAssessmentRecord(record);
+}
+
 function findRecord(year, station, type, company) {
   return allData.find(d =>
     d.year == year && d.station === station && d.type === type &&
@@ -5864,7 +5875,7 @@ function saveAssessment() {
   } else {
     allData.push(record);
   }
-  saveAllData();
+  saveOneRecord(record); // v19.34.0: 이 점검표 record만 Firebase 갱신 (전체 set 미사용)
   unsavedChanges = false;
 
   // 심사 일정 데이터에도 동기화
@@ -6668,6 +6679,7 @@ function saveGroupCommon(gIdx) {
   const auditDate = dateStart ? dateStart.slice(0, 7) : '';
 
   let updated = 0;
+  const changedRecords = [];
   Object.values(group.types).forEach(entry => {
     if (!entry.record) return;
     const recordIdx = allData.findIndex(d =>
@@ -6679,11 +6691,14 @@ function saveGroupCommon(gIdx) {
       allData[recordIdx].auditDate = auditDate;
       allData[recordIdx].auditDateStart = dateStart;
       allData[recordIdx].auditDateEnd = dateEnd;
+      changedRecords.push(allData[recordIdx]);
       updated++;
     }
   });
 
-  saveAllData();
+  // v19.34.0: 변경된 그룹 record만 개별 갱신 (전체 set 미사용)
+  SafeStorage.set(STORAGE_KEY, allData);
+  changedRecords.forEach(firebaseSaveAssessmentRecord);
 
   // 심사 일정 데이터에도 동기화
   // v19.33.0: 점수조회 그룹 저장 시 일정 동기화도 admin만
@@ -6776,7 +6791,7 @@ function saveGroupTypeEdit(gIdx, type) {
   if (recordIdx >= 0) {
     allData[recordIdx].scores = { ...editingScores };
     allData[recordIdx].remarks = { ...(allData[recordIdx].remarks || {}), ...editingRemarks };
-    saveAllData();
+    saveOneRecord(allData[recordIdx]); // v19.34.0: 이 record만 Firebase 갱신
     editingScores = {};
     editingRemarks = {};
     showToast(`${entry.station} ${getTypeLabel(type)} 점수가 저장되었습니다.`, 'success');
@@ -6800,8 +6815,9 @@ function deleteGroupType(gIdx, type) {
     (!entry.company || d.company === entry.company)
   );
   if (recordIdx >= 0) {
+    const removed = allData[recordIdx]; // v19.34.0: 삭제 전 키 산출용 참조 확보
     allData.splice(recordIdx, 1);
-    saveAllData();
+    deleteOneRecord(removed); // 이 record만 Firebase에서 제거
     showToast('데이터가 삭제되었습니다.', 'info');
     viewSearch();
   }
@@ -6969,7 +6985,7 @@ function saveEdit(idx) {
     allData[recordIdx].auditDate = auditDate;
     allData[recordIdx].auditDateStart = auditDateStart;
     allData[recordIdx].auditDateEnd = auditDateEnd;
-    saveAllData();
+    saveOneRecord(allData[recordIdx]); // v19.34.0: 이 record만 Firebase 갱신
     editingScores = {};
     editingRemarks = {};
     showToast('수정사항이 저장되었습니다.', 'success');
@@ -6991,8 +7007,9 @@ function deleteRecord(idx) {
   );
 
   if (recordIdx >= 0) {
+    const removed = allData[recordIdx]; // v19.34.0: 삭제 전 키 산출용 참조 확보
     allData.splice(recordIdx, 1);
-    saveAllData();
+    deleteOneRecord(removed); // 이 record만 Firebase에서 제거
     showToast('데이터가 삭제되었습니다.', 'info');
     renderScoreView();
   }
@@ -11018,7 +11035,9 @@ function saveScheduleItem(scheduleId) {
       }
       if (item.dateEnd) record.auditDateEnd = item.dateEnd;
     });
-    saveAllData();
+    // v19.34.0: 일정과 일치하는 대상 record만 개별 갱신 (전체 set 미사용)
+    SafeStorage.set(STORAGE_KEY, allData);
+    matched.forEach(firebaseSaveAssessmentRecord);
   }
 
   showToast('일정이 저장되었습니다.', 'success');
@@ -12212,6 +12231,38 @@ function firebaseSaveAllData() {
     });
     return dbRef('assessments').set(assessmentObj);
   } catch(e) { console.error('Firebase save assessments failed:', e); showToast('심사 데이터 Firebase 저장 실패', 'error'); return Promise.reject(e); }
+}
+
+// v19.34.0: record 단위 저장 — 일반 작성/수정/삭제는 assessments 전체 set 대신
+// 변경된 record만 child().set/remove. 동시 편집 시 다른 record가 통째로 덮어써지는
+// 연쇄 손실(stale 전체 set)을 방지한다. 같은 record 동시 저장(last-write-wins)은 Phase 2(충돌 감지)에서 처리.
+function firebaseSaveAssessmentRecord(record) {
+  if (!firebaseDb) return Promise.resolve();
+  if (!record) return Promise.resolve();
+  // WIPE 방어 일관성: 첫 sync 전엔 Firebase 실제 상태를 모르므로 저장 보류 (firebaseSaveAllData와 동일 정책)
+  if (!_fbFirstSync.assessments) {
+    console.warn('firebaseSaveAssessmentRecord blocked: assessments first sync not done');
+    return Promise.resolve();
+  }
+  try {
+    const key = makeKey(record.year, record.station, record.type, record.company).replace(/[.#$/\[\]]/g, '_');
+    const copy = { ...record, scores: encodeScoresForFirebase(record.scores || {}) };
+    if (record.remarks) copy.remarks = encodeScoresForFirebase(record.remarks);
+    return dbRef('assessments').child(key).set(copy);
+  } catch(e) { console.error('Firebase save assessment record failed:', e); showToast('심사 데이터 Firebase 저장 실패', 'error'); return Promise.reject(e); }
+}
+
+function firebaseDeleteAssessmentRecord(record) {
+  if (!firebaseDb) return Promise.resolve();
+  if (!record) return Promise.resolve();
+  if (!_fbFirstSync.assessments) {
+    console.warn('firebaseDeleteAssessmentRecord blocked: assessments first sync not done');
+    return Promise.resolve();
+  }
+  try {
+    const key = makeKey(record.year, record.station, record.type, record.company).replace(/[.#$/\[\]]/g, '_');
+    return dbRef('assessments').child(key).remove();
+  } catch(e) { console.error('Firebase delete assessment record failed:', e); showToast('심사 데이터 Firebase 삭제 실패', 'error'); return Promise.reject(e); }
 }
 
 function firebaseSaveAuditors() {
