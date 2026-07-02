@@ -1595,7 +1595,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.35.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.35.1</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1769,7 +1769,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.35.0',
+  version: '19.35.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -7561,16 +7561,14 @@ function renderPeriodReport() {
     html += kpiCard('CAR 발행', `${carItems.length}<span style="font-size:14px;color:#9EA2A1;font-weight:500;"> 건</span>`, _prDelta(carItems.length, prevCarCount, 0, '건', true), '#D20015');
     html += `</div>`;
 
-    // v19.35.0: 연간 모드 — 작년·올해 월별 추이 차트 (심사 건수/CAR/지점 성숙도/실본부 적합률)
+    // v19.35.0: 연간 모드 — 작년·올해 월별 추이 차트. v19.35.1: 4개 → 2개 통합(건수 막대+선 / 지표 이중축 선)
     if (statsPeriod.mode === 'year') {
-      const chartBlock = (title, cid) => `<div><div style="font-size:13px;font-weight:600;color:#565A5B;margin-bottom:8px;">${title}</div><div style="position:relative;height:240px;"><canvas id="${cid}"></canvas></div></div>`;
+      const chartBlock = (title, cid, sub) => `<div><div style="font-size:13px;font-weight:600;color:#565A5B;margin-bottom:2px;">${title}</div><div style="font-size:11px;color:#9EA2A1;margin-bottom:8px;">${sub}</div><div style="position:relative;height:260px;"><canvas id="${cid}"></canvas></div></div>`;
       html += `<div class="apple-card p-6 mb-4"><h3 style="font-size:16px;font-weight:600;color:#303A3C;margin:0 0 4px;">월별 추이 <span style="font-size:13px;color:#9EA2A1;font-weight:500;">전년 대비</span></h3>`
-        + `<p style="font-size:13px;color:#9EA2A1;margin:0 0 16px;">${year}년(빨강) · ${year - 1}년(파랑) · 심사 건수는 심사대상 단위(가장 이른 심사월 기준), 작성 중 제외</p>`
+        + `<p style="font-size:13px;color:#9EA2A1;margin:0 0 16px;">심사 건수는 심사대상 단위(가장 이른 심사월 기준) · 작성 중 제외</p>`
         + `<div class="grid grid-cols-1 md:grid-cols-2 gap-6">`
-        + chartBlock('심사 건수', 'prMonAudits')
-        + chartBlock('CAR 발행 건수', 'prMonCar')
-        + chartBlock('지점 성숙도 (월 평균)', 'prMonMat')
-        + (canSeeDivision() ? chartBlock('실/본부 적합률 (월 평균)', 'prMonComp') : '') // v19.31.0 scope
+        + chartBlock('심사 · CAR 발행 건수', 'prMonCount', '막대 = 심사 건수 · 선 = CAR 발행 · 빨강 = 금년 · 파랑 = 전년')
+        + chartBlock(canSeeDivision() ? '지점 성숙도 · 실/본부 적합률' : '지점 성숙도', 'prMonRate', canSeeDivision() ? '빨강계열 = 성숙도(좌축) · 파랑계열 = 적합률(우축) · 진한색 = 금년' : '월 평균 성숙도 · 진한색 = 금년') // v19.31.0 scope
         + `</div></div>`;
     }
 
@@ -7728,75 +7726,97 @@ function _prMonthlyAgg(y) {
   };
 }
 function renderPeriodMonthlyCharts(year) {
+  // v19.35.1: 4개 차트 → 2개 통합 (① 건수: 심사 막대+CAR 선 · ② 지표: 성숙도 좌축+적합률 우축)
   try {
     const cur = _prMonthlyAgg(year), pre = _prMonthlyAgg(year - 1);
     const labels = Array.from({ length: 12 }, (_, i) => (i + 1) + '월');
     const CUR = '#D20015', PRE = '#3B82F6'; // 금번=빨강 · 직전=파랑 (v19.18.x 공통 컨벤션)
-    const mkBar = (cid, curData, preData) => {
-      const ctx = document.getElementById(cid);
-      if (!ctx) return;
-      destroyChart(cid);
-      chartInstances[cid] = new Chart(ctx, {
-        type: 'bar',
+    const legendOpt = { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, padding: 10 } };
+    const xOpt = { grid: { display: false }, ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 0, minRotation: 0 } };
+    const lineBase = { type: 'line', spanGaps: true, borderWidth: 2, pointRadius: 3.5, pointHoverRadius: 5, pointBackgroundColor: '#fff', pointBorderWidth: 2, tension: 0.15 };
+
+    // ① 심사·CAR 발행 건수 — 단위 동일('건'), 막대=심사·선=CAR, 색=연도
+    const c1 = document.getElementById('prMonCount');
+    if (c1) {
+      destroyChart('prMonCount');
+      chartInstances['prMonCount'] = new Chart(c1, {
         data: {
           labels, datasets: [
-            { label: (year - 1) + '년', data: preData, backgroundColor: PRE + '99', borderColor: PRE, borderWidth: 1, borderRadius: 4, barPercentage: 0.72, categoryPercentage: 0.64 },
-            { label: year + '년', data: curData, backgroundColor: CUR + '99', borderColor: CUR, borderWidth: 1, borderRadius: 4, barPercentage: 0.72, categoryPercentage: 0.64 }
+            { type: 'bar', order: 3, label: '심사 ' + (year - 1) + '년', data: pre.audits, backgroundColor: PRE + '80', borderColor: PRE, borderWidth: 1, borderRadius: 4, barPercentage: 0.72, categoryPercentage: 0.6 },
+            { type: 'bar', order: 3, label: '심사 ' + year + '년', data: cur.audits, backgroundColor: CUR + '80', borderColor: CUR, borderWidth: 1, borderRadius: 4, barPercentage: 0.72, categoryPercentage: 0.6 },
+            Object.assign({}, lineBase, { order: 2, label: 'CAR ' + (year - 1) + '년', data: pre.car, borderColor: PRE, backgroundColor: PRE, pointBorderColor: PRE, borderDash: [5, 4] }),
+            Object.assign({}, lineBase, { order: 1, label: 'CAR ' + year + '년', data: cur.car, borderColor: CUR, backgroundColor: CUR, pointBorderColor: CUR })
           ]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
           scales: {
-            y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } }, grid: { color: 'rgba(192,206,209,0.25)' } },
-            x: { grid: { display: false }, ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 0, minRotation: 0 } }
+            y: { beginAtZero: true, ticks: { precision: 0, font: { size: 10 } }, grid: { color: 'rgba(192,206,209,0.25)' }, title: { display: true, text: '건수', font: { size: 10 } } },
+            x: xOpt
           },
           plugins: {
-            legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, padding: 10 } },
-            datalabels: { display: c => c.raw != null, anchor: 'end', align: 'end', offset: 0, color: c => c.datasetIndex === 1 ? CUR : '#1D6FB8', font: { size: 10, weight: '700' }, formatter: v => v }
-          }
-        },
-        plugins: [ChartDataLabels]
-      });
-    };
-    const mkLine = (cid, curData, preData, yOpt, fmt) => {
-      const ctx = document.getElementById(cid);
-      if (!ctx) return;
-      destroyChart(cid);
-      chartInstances[cid] = new Chart(ctx, {
-        type: 'line',
-        data: {
-          labels, datasets: [
-            { label: year + '년', data: curData, borderColor: CUR, backgroundColor: CUR, borderWidth: 2, spanGaps: true, pointRadius: 3.5, pointHoverRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: CUR, pointBorderWidth: 2, tension: 0.15 },
-            { label: (year - 1) + '년', data: preData, borderColor: PRE, backgroundColor: PRE, borderWidth: 2, borderDash: [5, 4], spanGaps: true, pointRadius: 3.5, pointHoverRadius: 5, pointBackgroundColor: '#fff', pointBorderColor: PRE, pointBorderWidth: 2, tension: 0.15 }
-          ]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          scales: {
-            y: Object.assign({ grid: { color: 'rgba(192,206,209,0.25)' } }, yOpt),
-            x: { grid: { display: false }, ticks: { font: { size: 10 }, autoSkip: false, maxRotation: 0, minRotation: 0 } }
-          },
-          plugins: {
-            legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 8, font: { size: 11 }, padding: 10 } },
-            tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw != null ? fmt(c.raw) : '-'}` } },
+            legend: legendOpt,
             datalabels: {
-              display: c => c.raw != null, align: c => c.datasetIndex === 0 ? 'top' : 'bottom', offset: 4,
-              color: c => c.datasetIndex === 0 ? CUR : '#1D6FB8', font: { size: 10, weight: '600' }, formatter: v => fmt(v)
+              display: c => c.raw != null && (c.dataset.type !== 'bar' || c.raw > 0),
+              anchor: c => c.dataset.type === 'bar' ? 'end' : 'center',
+              align: c => c.dataset.type === 'bar' ? 'end' : (c.datasetIndex === 3 ? 'top' : 'bottom'),
+              offset: c => c.dataset.type === 'bar' ? 0 : 4,
+              color: c => (c.datasetIndex === 1 || c.datasetIndex === 3) ? CUR : '#1D6FB8',
+              font: { size: 10, weight: '700' },
+              formatter: v => v
             }
           }
         },
         plugins: [ChartDataLabels]
       });
-    };
-    mkBar('prMonAudits', cur.audits, pre.audits);
-    mkBar('prMonCar', cur.car, pre.car);
-    mkLine('prMonMat', cur.mat, pre.mat, { min: 0, max: 4, ticks: { stepSize: 1, font: { size: 10 } } }, v => Number(v).toFixed(2));
-    if (document.getElementById('prMonComp')) {
-      // y축 최소값: 데이터 최저점 -10 을 5단위 내림 (변별력, 50~90 클램프 — divTrendChart와 동일 정책)
+    }
+
+    // ② 지점 성숙도(빨강계열, 좌축 0~4) · 실/본부 적합률(파랑계열, 우축 %) — 진한색·실선=금년
+    const c2 = document.getElementById('prMonRate');
+    if (c2) {
+      const MAT_PRE = '#F09CAA', COMP_CUR = '#1D6FB8', COMP_PRE = '#93C5FD';
+      const showComp = canSeeDivision(); // v19.31.0 scope — 운송본부 사용자는 적합률 미표시
+      const datasets = [
+        Object.assign({}, lineBase, { yAxisID: 'y', label: '성숙도 ' + (year - 1) + '년', data: pre.mat, borderColor: MAT_PRE, backgroundColor: MAT_PRE, pointBorderColor: MAT_PRE, borderDash: [5, 4] }),
+        Object.assign({}, lineBase, { yAxisID: 'y', label: '성숙도 ' + year + '년', data: cur.mat, borderColor: CUR, backgroundColor: CUR, pointBorderColor: CUR })
+      ];
+      if (showComp) {
+        datasets.push(
+          Object.assign({}, lineBase, { yAxisID: 'y1', label: '적합률 ' + (year - 1) + '년', data: pre.comp, borderColor: COMP_PRE, backgroundColor: COMP_PRE, pointBorderColor: COMP_PRE, borderDash: [5, 4] }),
+          Object.assign({}, lineBase, { yAxisID: 'y1', label: '적합률 ' + year + '년', data: cur.comp, borderColor: COMP_CUR, backgroundColor: COMP_CUR, pointBorderColor: COMP_CUR })
+        );
+      }
+      // 우축 최소값: 데이터 최저점 -10 을 5단위 내림 (변별력, 50~90 클램프 — divTrendChart와 동일 정책)
       const vals = [...cur.comp, ...pre.comp].filter(v => v != null);
       const minV = vals.length ? Math.min(...vals) : 90;
-      const yMin = Math.min(90, Math.max(50, Math.floor((minV - 10) / 5) * 5));
-      mkLine('prMonComp', cur.comp, pre.comp, { min: yMin, max: 100, ticks: { stepSize: 5, callback: v => v + '%', font: { size: 10 } } }, v => v + '%');
+      const y1Min = Math.min(90, Math.max(50, Math.floor((minV - 10) / 5) * 5));
+      const isMat = c => c.dataset.yAxisID === 'y';
+      destroyChart('prMonRate');
+      chartInstances['prMonRate'] = new Chart(c2, {
+        type: 'line',
+        data: { labels, datasets },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          scales: {
+            y: { min: 0, max: 4, ticks: { stepSize: 1, font: { size: 10 } }, grid: { color: 'rgba(192,206,209,0.25)' }, title: { display: true, text: '성숙도 (점)', font: { size: 10 } } },
+            y1: { display: showComp, position: 'right', min: y1Min, max: 100, ticks: { stepSize: 5, callback: v => v + '%', font: { size: 10 } }, grid: { drawOnChartArea: false }, title: { display: showComp, text: '적합률 (%)', font: { size: 10 } } },
+            x: xOpt
+          },
+          plugins: {
+            legend: legendOpt,
+            tooltip: { callbacks: { label: c => `${c.dataset.label}: ${c.raw != null ? (isMat(c) ? Number(c.raw).toFixed(2) : c.raw + '%') : '-'}` } },
+            datalabels: {
+              display: c => c.raw != null,
+              align: c => (c.datasetIndex % 2 === 1) ? 'top' : 'bottom', // 금년=위·전년=아래 (겹침 완화)
+              offset: 4,
+              color: c => c.dataset.borderColor,
+              font: { size: 10, weight: '600' },
+              formatter: (v, c) => isMat(c) ? Number(v).toFixed(2) : v + '%'
+            }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
     }
   } catch (e) { console.warn('renderPeriodMonthlyCharts failed:', e); }
 }
