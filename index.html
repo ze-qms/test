@@ -1288,7 +1288,6 @@ select.apple-input {
       </div>
       <div id="analysisSubTabBar" class="flex gap-2 mt-3 overflow-x-auto flex-nowrap" style="-webkit-overflow-scrolling:touch;">
         <button class="sub-tab sub-tab-active" onclick="switchAnalysisSubTab('branch')" id="analysisSubBranch">지점 성숙도</button>
-        <button class="sub-tab sub-tab-inactive" onclick="switchAnalysisSubTab('checklistAvg')" id="analysisSubChecklistAvg">점검표별 평균</button>
         <button class="sub-tab sub-tab-inactive" onclick="switchAnalysisSubTab('maturityResult')" id="analysisSubMaturityResult">성숙도 평가 결과</button>
         <button class="sub-tab sub-tab-inactive" onclick="switchAnalysisSubTab('division')" id="analysisSubDivision">실/본부 심사</button>
         <button class="sub-tab sub-tab-inactive" onclick="switchAnalysisSubTab('outsourcing')" id="analysisSubOutsourcing">외주협력업체</button>
@@ -1320,7 +1319,6 @@ select.apple-input {
       </script>
     </div>
     <div id="branchAnalysisContent"><div id="analysisContainer"></div></div>
-    <div id="checklistAvgAnalysisContent" class="hidden"></div>
     <div id="maturityResultAnalysisContent" class="hidden"></div>
     <div id="divisionAnalysisContent" class="hidden"></div>
     <div id="outsourcingAnalysisContent" class="hidden"></div>
@@ -8743,7 +8741,7 @@ function renderAuditorStats() {
   document.getElementById('auditorStatsContent').innerHTML = html;
 }
 
-// ── 점검표별 평균 (분석 탭 서브탭, v19.41.0) ───────────────────────
+// ── 점검표별 평균 (분석 > 지점 성숙도 카드 상세, v19.41.0) ─────────
 // 점검표 유형(항공사·여객·램프·VOC·지점 안전감사)별 월별/총 평균 + CAR 발행 건수.
 // 분석 탭 연도·기간 필터(analysisYear/analysisPeriod)를 따름(분기·월이면 해당 범위 월만 컬럼).
 // grade=성숙도 점수(N.NN)·binary=적합률(NN.N%)·CAR=건수로 단위가 달라 값·행 라벨에 병기.
@@ -8839,7 +8837,7 @@ function renderChecklistAvgAnalysis() {
   html += `</tbody></table></div>`;
   html += `<div style="font-size:11px;color:#9EA2A1;margin-top:10px;line-height:1.6;">· 성숙도 점검표(항공사·여객·램프·VOC)는 평균 점수(1~4점), 지점 안전감사는 적합률(%), 개선조치요구(CAR)는 지점 발행 건수입니다.<br>· 값은 해당 월 심사분의 평균이며, 심사가 없는 달은 '-'로 표시됩니다. 총 평균은 선택 기간 전체 심사분 기준입니다.</div>`;
 
-  document.getElementById('checklistAvgAnalysisContent').innerHTML = html;
+  document.getElementById('checklistAvgInner').innerHTML = html;
 }
 
 
@@ -9057,7 +9055,6 @@ function renderAnalysis() {
   if (typeof analysisSubTab === 'undefined') window.analysisSubTab = 'branch';
   // v19.31.0: 운송본부 사용자가 실/본부 분석에 머무르면 지점 분석으로 폴백
   if (analysisSubTab === 'division' && !canSeeDivision()) window.analysisSubTab = 'branch';
-  if (analysisSubTab === 'checklistAvg') { renderChecklistAvgAnalysis(); return; }
   if (analysisSubTab === 'maturityResult') { renderMaturityResultList(); return; }
   if (analysisSubTab === 'division') { renderDivisionAnalysis(); return; }
   if (analysisSubTab === 'outsourcing') { renderOutsourcingAnalysis(); return; }
@@ -9416,6 +9413,17 @@ function renderAnalysis() {
   html += `<div style="font-size:11px;color:#D20015;margin-top:8px;">상세보기 ></div>`;
   html += `</div>`;
 
+  // Card 12: 점검표별 평균 (v19.41.0) — 점검표 유형별 월·연 평균 (클릭 시 펼침)
+  html += `<div class="apple-card" style="padding:20px;cursor:pointer;transition:all 0.15s ease;"
+    onmouseover="this.style.boxShadow='rgba(0,0,0,0.12) 0px 2px 12px 0px'"
+    onmouseout="this.style.boxShadow='none'"
+    onclick="toggleAnalysisDetail('analysisDetailChecklistAvg')">`;
+  html += `<div style="font-size:12px;color:#9EA2A1;margin-bottom:4px;">점검표별 평균</div>`;
+  html += `<div style="font-size:13px;color:#303A3C;margin-bottom:8px;">항목별 월·연 평균</div>`;
+  html += `<div><span style="font-size:24px;font-weight:600;color:#0067C4;">6</span><span style="font-size:12px;color:#9EA2A1;margin-left:4px;">종 점검표 · 월별/총 평균</span></div>`;
+  html += `<div style="font-size:11px;color:#D20015;margin-top:8px;">상세보기 ></div>`;
+  html += `</div>`;
+
   html += '</div>';
 
   // ===== Detail Sections (hidden by default) =====
@@ -9720,6 +9728,9 @@ function renderAnalysis() {
   // v19.26.1: CAR 분석을 접이식으로 전환 — 펼칠 때 renderCarAnalysis 호출 (차트 0크기 방지)
   html += `<div id="analysisDetailCar" class="hidden mb-6 fade-in" style="margin-top:20px;"><div id="carAnalysisInner"></div></div>`;
 
+  // Detail: 점검표별 평균 (v19.41.0)
+  html += `<div id="analysisDetailChecklistAvg" class="hidden mb-6 fade-in" style="margin-top:20px;"><div id="checklistAvgInner"></div></div>`;
+
   container.innerHTML = html;
 
   // Store data for chart rendering when detail sections are opened
@@ -9800,7 +9811,7 @@ function switchAnalysisSubTab(tab) {
   // v19.31.0: 운송본부 사용자가 실/본부 서브탭에 도달하면 지점 분석으로 폴백
   if (tab === 'division' && !canSeeDivision()) tab = 'branch';
   window.analysisSubTab = tab;
-  const tabs = ['branch', 'checklistAvg', 'maturityResult', 'division', 'outsourcing'];
+  const tabs = ['branch', 'maturityResult', 'division', 'outsourcing'];
   tabs.forEach(t => {
     const btn = document.getElementById('analysisSub' + t.charAt(0).toUpperCase() + t.slice(1));
     if (btn) btn.className = t === tab ? 'sub-tab sub-tab-active' : 'sub-tab sub-tab-inactive';
@@ -10313,7 +10324,7 @@ function renderDivisionRiskChart(yearData) {
 
 function toggleAnalysisDetail(id) {
   // Close all other details
-  ['analysisDetail1','analysisDetail2','analysisDetail3','analysisDetail4','analysisDetail5','analysisDetail6','analysisDetail7','analysisDetail8','analysisDetail9','analysisDetailVoc','analysisDetailCar'].forEach(detailId => {
+  ['analysisDetail1','analysisDetail2','analysisDetail3','analysisDetail4','analysisDetail5','analysisDetail6','analysisDetail7','analysisDetail8','analysisDetail9','analysisDetailVoc','analysisDetailCar','analysisDetailChecklistAvg'].forEach(detailId => {
     if (detailId !== id) document.getElementById(detailId)?.classList.add('hidden');
   });
 
@@ -10341,6 +10352,7 @@ function toggleAnalysisDetail(id) {
     else if (id === 'analysisDetail9') renderRegionalRadarChart(data);
     else if (id === 'analysisDetailVoc') renderVocCompareChart(data);
     else if (id === 'analysisDetailCar') renderCarAnalysis(data.year, 'branch');
+    else if (id === 'analysisDetailChecklistAvg') renderChecklistAvgAnalysis();
   }
 }
 
