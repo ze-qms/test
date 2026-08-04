@@ -993,6 +993,11 @@ select.apple-input {
             <input id="inputDateEnd" type="text" data-fp class="apple-input" placeholder="날짜 선택">
           </div>
         </div>
+        <!-- v19.46.0: 점검표 PDF 출력용 감사수검자(피심사자) -->
+        <div class="mt-5">
+          <label class="apple-label">감사수검자 <span style="font-weight:400;color:#9EA2A1;">(선택 · 점검표 PDF 상단에 표기)</span></label>
+          <input id="inputAuditees" type="text" class="apple-input" placeholder="예: 김영문, HAYASHI YURINA">
+        </div>
         <input id="inputAuditor" type="hidden" value="">
       </div>
       <!-- v19.10.0: 점검표 유형 선택 인라인 통합 (Phase 2 + Phase 3 병합) -->
@@ -1599,7 +1604,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.45.1</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.46.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1645,6 +1650,7 @@ select.apple-input {
         </button>
         <div class="sd-download-list">
           <button type="button" class="sd-download-item" onclick="downloadDetailPDF()">PDF로 저장 <span style="font-size:11px;color:#9EA2A1;">(시각 보고)</span></button>
+          <button type="button" class="sd-download-item" onclick="openSdChecklistSheetPicker()">점검표 PDF <span style="font-size:11px;color:#9EA2A1;">(원본 양식)</span></button>
           <button type="button" class="sd-download-item" onclick="downloadDetailHTML()">전자결재 양식(HTML) 저장</button>
           <button type="button" class="sd-download-item" onclick="copyDetailHTMLToClipboard()">그룹웨어 양식 복사 <span style="font-size:11px;color:#9EA2A1;">(전자결재용)</span></button>
         </div>
@@ -1776,7 +1782,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.45.1',
+  version: '19.46.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -5299,6 +5305,7 @@ function inputSearch() {
   document.getElementById('inputDateStart').value = today;
   document.getElementById('inputDateEnd').value = today;
   document.getElementById('inputAuditor').value = '';
+  _setAuditeesInput(''); // v19.46.0
 
   // 기존 데이터에서 심사원/심사일 가져오기 (있으면)
   const anyRecord = allData.find(d => d.year == selectedYear && d.station === selectedStation);
@@ -5306,6 +5313,7 @@ function inputSearch() {
     if (anyRecord.auditor) document.getElementById('inputAuditor').value = anyRecord.auditor;
     if (anyRecord.auditDateStart) document.getElementById('inputDateStart').value = anyRecord.auditDateStart;
     if (anyRecord.auditDateEnd) document.getElementById('inputDateEnd').value = anyRecord.auditDateEnd;
+    if (anyRecord.auditees) _setAuditeesInput(anyRecord.auditees); // v19.46.0
     // 구버전 호환: auditDate만 있는 경우
     if (!anyRecord.auditDateStart && anyRecord.auditDate) {
       document.getElementById('inputDateStart').value = anyRecord.auditDate.length === 7 ? anyRecord.auditDate + '-01' : anyRecord.auditDate;
@@ -5482,7 +5490,11 @@ function inputShowTypes() {
     html += `</div>`;
     html += `<p style="font-size:13px;color:#9EA2A1;margin-bottom:8px;">${t.desc}</p>`;
     html += companyInfo;
-    html += `<div style="font-size:13px;color:${canEdit ? '#D20015' : '#9EA2A1'};font-weight:600;margin-top:12px;">${canEdit ? actionText + ' →' : '🔒 작성 권한 없음'}</div>`;
+    html += `<div class="flex justify-between items-center gap-2" style="margin-top:12px;">`;
+    html += `<span style="font-size:13px;color:${canEdit ? '#D20015' : '#9EA2A1'};font-weight:600;">${canEdit ? actionText + ' →' : '🔒 작성 권한 없음'}</span>`;
+    // v19.46.0: 저장된 점검표는 원본 양식으로 인쇄/PDF 출력 (권한 무관 — 조회 가능하면 출력 가능)
+    if (hasData) html += `<button onclick="event.stopPropagation();openChecklistSheetPicker(${selectedYear},'${selectedStation}','${t.key}','${company || ''}')" class="touch-text-btn" style="background:none;border:1px solid #C0CED1;border-radius:999px;color:#565A5B;font-size:12px;cursor:pointer;padding:5px 12px;" title="점검표 양식으로 인쇄/PDF 저장">PDF</button>`;
+    html += `</div>`;
     html += `</div>`;
   });
   document.getElementById('typeSelectCards').innerHTML = html;
@@ -6034,6 +6046,16 @@ function applyPartialFlag(record, checklist) {
   return judged;
 }
 
+// v19.46.0: 감사수검자(피심사자) — 점검표 PDF 상단 정보표에 표기. optional 필드라 값이 없으면 record에 키를 넣지 않음.
+function _setAuditeesInput(v) {
+  const el = document.getElementById('inputAuditees');
+  if (el) el.value = v || '';
+}
+function _getAuditeesInput() {
+  const el = document.getElementById('inputAuditees');
+  return el ? el.value.trim() : '';
+}
+
 async function saveAssessment() {
   if (!requireRole('auditor')) return;
   // v19.31.1: 배정 심사원/admin만 저장 가능 (작성·수정 공통 authoritative 가드)
@@ -6081,6 +6103,9 @@ async function saveAssessment() {
   };
   if (company) record.company = company;
   if (selectedAuditCategory === 'division') record.division = selectedDivision;
+  // v19.46.0: 감사수검자 — 이 함수는 record 객체를 통째로 새로 만들므로 여기서 반드시 실어야 재저장 시 값이 보존됨
+  const auditees = _getAuditeesInput();
+  if (auditees) record.auditees = auditees;
   // v19.28.0: 부분 저장이면 '작성 중' 표시. 전 항목 입력 시 partial 플래그 제거(이어쓰기 후 완료 처리)
   if (isPartial) record.partial = true; else delete record.partial;
 
@@ -6677,6 +6702,8 @@ function renderGroupReadOnlyDetail(gIdx, group) {
     html += `<div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">`;
     html += `<div class="flex gap-4"><div><span style="font-size:12px;color:#9EA2A1;">심사원</span><div style="font-size:14px;font-weight:600;color:#303A3C;">${auditorDisplay}</div></div>`;
     html += `<div><span style="font-size:12px;color:#9EA2A1;">심사일</span><div style="font-size:14px;font-weight:600;color:#303A3C;">${dateDisplay}</div></div>`;
+    // v19.46.0: 감사수검자 — 입력된 경우에만 표시
+    if (anyRecord?.auditees) html += `<div><span style="font-size:12px;color:#9EA2A1;">감사수검자</span><div style="font-size:14px;font-weight:600;color:#303A3C;">${_esc(anyRecord.auditees)}</div></div>`;
     // v19.44.0: 확정(잠금) 표시 — 수정 버튼이 왜 없는지 화면에서 알 수 있도록
     const _lockInfo = getTargetLock(group.year, group.station);
     if (_lockInfo) html += `<div><span style="font-size:12px;color:#9EA2A1;">상태</span><div style="font-size:13px;font-weight:600;color:#D20015;">확정됨${_lockInfo.lockedByName ? ' · ' + _lockInfo.lockedByName : ''}</div></div>`;
@@ -6735,6 +6762,8 @@ function renderGroupReadOnlyDetail(gIdx, group) {
         const overallStyle = result.complianceRate >= 90 ? 'background:rgba(34,197,94,0.15);color:#22C55E' : result.complianceRate >= 70 ? 'background:rgba(245,158,11,0.15);color:#F59E0B' : 'background:rgba(210,0,21,0.15);color:#D20015';
         html += `<div><span style="font-size:11px;color:#9EA2A1;">적합률</span><span class="badge-pill" style="${overallStyle};font-size:13px;margin-left:4px;">${result.complianceRate.toFixed(1)}%</span></div>`;
         html += `<div class="flex gap-1">`;
+        // v19.46.0: 점검표 원본 양식 출력 — 조회 권한만 있으면 사용 가능
+        html += `<button onclick="event.stopPropagation();openChecklistSheetPicker(${group.year},'${group.station}','${type}','${company}')" class="touch-text-btn" style="background:none;border:none;color:#565A5B;font-size:12px;cursor:pointer;padding:8px 10px;" title="점검표 양식으로 인쇄/PDF 저장">PDF</button>`;
         if (_canEdit) html += `<button onclick="event.stopPropagation();startGroupTypeEdit(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#D20015;font-size:12px;cursor:pointer;padding:8px 10px;">수정</button>`;
         if (_isAdmin) html += `<button onclick="event.stopPropagation();deleteGroupType(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#565A5B;font-size:12px;cursor:pointer;padding:8px 10px;">삭제</button>`;
         html += `</div></div>`;
@@ -6756,6 +6785,8 @@ function renderGroupReadOnlyDetail(gIdx, group) {
         html += `<div class="flex justify-between items-center">`;
         html += `<div><span style="font-size:11px;color:#9EA2A1;">전체 평균</span><span class="badge-pill" style="${avgBadgeStyle(result.overallAverage)};font-size:13px;margin-left:4px;">${result.overallAverage.toFixed(2)}</span></div>`;
         html += `<div class="flex gap-1">`;
+        // v19.46.0: 점검표 원본 양식 출력 — 조회 권한만 있으면 사용 가능
+        html += `<button onclick="event.stopPropagation();openChecklistSheetPicker(${group.year},'${group.station}','${type}','${company}')" class="touch-text-btn" style="background:none;border:none;color:#565A5B;font-size:12px;cursor:pointer;padding:8px 10px;" title="점검표 양식으로 인쇄/PDF 저장">PDF</button>`;
         if (_canEdit) html += `<button onclick="event.stopPropagation();startGroupTypeEdit(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#D20015;font-size:12px;cursor:pointer;padding:8px 10px;">수정</button>`;
         if (_isAdmin) html += `<button onclick="event.stopPropagation();deleteGroupType(${gIdx},'${type}')" class="touch-text-btn" style="background:none;border:none;color:#565A5B;font-size:12px;cursor:pointer;padding:8px 10px;">삭제</button>`;
         html += `</div></div>`;
@@ -6806,6 +6837,8 @@ function showTypeDetail(gIdx, type) {
   html += `<span class="badge-pill" style="background:${isBinary ? '#6366F1' : '#D20015'};color:#fff;font-size:13px;padding:4px 14px;">${typeLabel}</span>`;
   html += `<span style="font-size:14px;font-weight:600;color:#303A3C;">${group.station}</span>`;
   if (entry.company) html += `<span style="font-size:12px;color:#9EA2A1;">${entry.company}</span>`;
+  // v19.46.0: 점검표 원본 양식 출력
+  html += `<button onclick="event.stopPropagation();openChecklistSheetPicker(${group.year},'${group.station}','${type}','${entry.company || ''}')" class="pill-btn pill-btn-outline" style="padding:4px 12px;font-size:12px;" title="점검표 양식으로 인쇄/PDF 저장">점검표 PDF</button>`;
   html += `</div>`;
   html += `<div style="text-align:right;">`;
   if (isBinary) {
@@ -6884,6 +6917,8 @@ function startGroupEditCommon(gIdx) {
   html += `<div><label class="apple-label">심사 시작일</label><input id="groupDateStart_${gIdx}" type="text" data-fp value="${anyRecord.auditDateStart || anyRecord.auditDate || ''}" class="apple-input" onchange="linkDatePair('groupDateStart_${gIdx}','groupDateEnd_${gIdx}')"></div>`;
   html += `<div><label class="apple-label">심사 종료일</label><input id="groupDateEnd_${gIdx}" type="text" data-fp value="${anyRecord.auditDateEnd || ''}" class="apple-input" min="${anyRecord.auditDateStart || ''}"></div>`;
   html += `</div>`;
+  // v19.46.0: 감사수검자(피심사자) — 점검표 PDF 상단 정보표에 표기
+  html += `<div class="mb-4"><label class="apple-label">감사수검자 <span style="font-weight:400;color:#9EA2A1;">(선택 · 점검표 PDF 상단에 표기)</span></label><input id="groupAuditees_${gIdx}" type="text" value="${_esc(anyRecord.auditees || '')}" class="apple-input" placeholder="예: 김영문, HAYASHI YURINA"></div>`;
   html += `<div class="flex gap-3 justify-end">`;
   html += `<button onclick="event.stopPropagation();cancelGroupEdit(${gIdx})" class="pill-btn pill-btn-outline">취소</button>`;
   html += `<button onclick="event.stopPropagation();saveGroupCommon(${gIdx})" class="pill-btn pill-btn-primary">일괄 저장</button>`;
@@ -6912,6 +6947,9 @@ async function saveGroupCommon(gIdx) {
   const dateStart = document.getElementById(`groupDateStart_${gIdx}`).value;
   const dateEnd = document.getElementById(`groupDateEnd_${gIdx}`).value;
   const auditDate = dateStart ? dateStart.slice(0, 7) : '';
+  // v19.46.0: 감사수검자 — 비우면 필드 자체를 제거(데이터 청결)
+  const auditeesEl = document.getElementById(`groupAuditees_${gIdx}`);
+  const auditees = auditeesEl ? auditeesEl.value.trim() : '';
 
   let updated = 0;
   const changedRecords = []; // v19.44.0: 실제로 바뀐 레코드만 기록
@@ -6928,6 +6966,7 @@ async function saveGroupCommon(gIdx) {
       allData[recordIdx].auditDate = auditDate;
       allData[recordIdx].auditDateStart = dateStart;
       allData[recordIdx].auditDateEnd = dateEnd;
+      if (auditees) allData[recordIdx].auditees = auditees; else delete allData[recordIdx].auditees; // v19.46.0
       _stampRecord(allData[recordIdx]);
       changedRecords.push(allData[recordIdx]);
       updated++;
@@ -7338,12 +7377,14 @@ function navigateToInput(year, station, type) {
   document.getElementById('inputDateStart').value = today;
   document.getElementById('inputDateEnd').value = today;
   document.getElementById('inputAuditor').value = '';
+  _setAuditeesInput(''); // v19.46.0
 
   const anyRecord = allData.find(d => d.year == year && d.station === station);
   if (anyRecord) {
     if (anyRecord.auditor) document.getElementById('inputAuditor').value = anyRecord.auditor;
     if (anyRecord.auditDateStart) document.getElementById('inputDateStart').value = anyRecord.auditDateStart;
     if (anyRecord.auditDateEnd) document.getElementById('inputDateEnd').value = anyRecord.auditDateEnd;
+    if (anyRecord.auditees) _setAuditeesInput(anyRecord.auditees); // v19.46.0
     if (!anyRecord.auditDateStart && anyRecord.auditDate) {
       document.getElementById('inputDateStart').value = anyRecord.auditDate.length === 7 ? anyRecord.auditDate + '-01' : anyRecord.auditDate;
     }
@@ -14543,6 +14584,422 @@ async function downloadDetailPDF() {
 }
 
 // ========================================================================
+// 점검표 시트 출력 (인쇄 / PDF) — v19.46.0
+// 원본 점검표 양식(★[지점] 안전감사 점검표 등)을 재현:
+//   로고 헤더 + 심사정보표 + [평가항목/질문 | 근거 | 판정 체크 | 비고] 표 + General Comment
+// 표를 <table>이 아니라 flex <div> 행으로 만드는 이유:
+//   (1) 인쇄 경로 — 행마다 page-break-inside:avoid 가 걸려 쪽 경계에서 행이 잘리지 않음
+//   (2) 다운로드 경로 — 행이 독립 블록이라 html2canvas 행 단위 캡처가 가능해
+//       기존 downloadDetailPDF의 픽셀 슬라이싱(행 중간 잘림) 없이 페이지를 나눌 수 있음
+// 참고 양식과 동일하게 열 헤더는 1쪽에만 나오고, 푸터(쪽번호·출력일)만 매 쪽 반복된다.
+// ========================================================================
+const _SHEET_FONT = "'Malgun Gothic','맑은 고딕','Apple SD Gothic Neo','Noto Sans KR',sans-serif";
+const _SHEET_BD = '#333';
+const _SHEET_W = 760; // 다운로드 경로 오프스크린 렌더 폭(px)
+
+function _sheetEsc(s) {
+  return _esc(s).replace(/\r?\n/g, '<br>');
+}
+
+function _sheetToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function _findAssessmentRecord(year, station, type, company) {
+  return allData.find(d =>
+    d.year == year && d.type === type &&
+    (d.station === station || d.division === station) &&
+    (!company || d.company === company)
+  );
+}
+
+function _sheetFilename(year, station, type) {
+  const reg = CHECKLIST_REGISTRY[type];
+  const name = (reg && reg.name) || getTypeLabel(type) || type;
+  const d = new Date();
+  const date = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const safe = (s) => String(s == null ? '' : s).replace(/[\\/:*?"<>|\s]+/g, '_').replace(/_+$/, '');
+  return `[안전기획팀]_${safe(station)}_${safe(name)}_${year}_${date}`;
+}
+
+// 판정 열 구성 — binary는 S/U/N/A, grade(성숙도)는 1/2/3/4/N/A
+function _sheetColSpec(method) {
+  return method === 'binary'
+    ? { labels: ['S', 'U', 'N/A'], first: 34, manual: 13, judge: 7, remark: 32 }
+    : { labels: ['1', '2', '3', '4', 'N/A'], first: 31, manual: 12, judge: 6, remark: 27 };
+}
+
+// 항목별 체크 상태 — 'on'(받은 판정) / 'off' / disabled(2·4점 전용 항목의 1·3칸)
+function _sheetMarkCells(method, item, val) {
+  const out = [];
+  if (method === 'binary') {
+    const v = String(val == null ? '' : val).toUpperCase();
+    // calculateBinaryScores와 동일한 표기 방어 ('S|YES|Y', 'U|NO|N', 'NA|N/A')
+    const norm = (v === 'S' || v === 'YES' || v === 'Y') ? 'S'
+      : (v === 'U' || v === 'NO' || v === 'N') ? 'U'
+      : (v === 'NA' || v === 'N/A') ? 'NA' : '';
+    ['S', 'U', 'NA'].forEach(k => out.push({ on: norm === k, disabled: false }));
+  } else {
+    // renderChecklistItems와 동일한 2/4점 전용 감지
+    const only24 = !!(item.maturity && !item.maturity[1] && !item.maturity[3] && item.maturity[2] && item.maturity[4]);
+    const vs = String(val == null ? '' : val).toUpperCase();
+    const isNA = (vs === 'N/A' || vs === 'NA');
+    const num = isNA ? NaN : Number(val);
+    [1, 2, 3, 4].forEach(lv => {
+      if (only24 && (lv === 1 || lv === 3)) { out.push({ on: false, disabled: true }); return; }
+      out.push({ on: num === lv, disabled: false });
+    });
+    out.push({ on: isNA, disabled: false });
+  }
+  return out;
+}
+
+function _sheetMarkHTML(c) {
+  if (c.disabled) return `<span style="color:#BBBBBB;">–</span>`;
+  return c.on ? `<span style="font-weight:700;">[√]</span>` : `[&nbsp;]`;
+}
+
+// 표 본문 행들 (카테고리 행 + 항목 행) — 각 행이 최상위 블록
+function _sheetRowsHTML(type, record) {
+  const checklist = getChecklist(type) || {};
+  const method = getScoringMethod(type);
+  const spec = _sheetColSpec(method);
+  const scores = (record && record.scores) || {};
+  const remarks = (record && record.remarks) || {};
+  const rowOpen = `<div class="sheet-row" style="display:flex;align-items:stretch;min-height:38px;border-left:1px solid ${_SHEET_BD};border-right:1px solid ${_SHEET_BD};border-bottom:1px solid ${_SHEET_BD};">`;
+  const cell = (w, extra, last) => `<div style="flex:0 0 ${w}%;max-width:${w}%;padding:6px 8px;box-sizing:border-box;${last ? '' : `border-right:1px solid ${_SHEET_BD};`}${extra || ''}">`;
+  const judgeCell = `padding:6px 2px;display:flex;align-items:center;justify-content:center;text-align:center;`;
+
+  let h = '';
+  for (const [catName, catData] of Object.entries(checklist)) {
+    const items = (catData && catData.items) || [];
+    // 카테고리 구분 행 (전폭)
+    h += rowOpen;
+    h += `<div style="flex:1 1 100%;padding:7px 8px;box-sizing:border-box;font-weight:700;">${_esc(catName)}</div>`;
+    h += `</div>`;
+
+    items.forEach(item => {
+      const marks = _sheetMarkCells(method, item, scores[item.id]);
+      h += rowOpen;
+      // 1열: 질문 + 확인사항 (참고 양식과 동일하게 한 칸에 병합)
+      // 점검표에 따라 text에 번호가 이미 들어있기도 하고(안전감사·실본부 "1) …", "1-1. …")
+      // 없기도 하므로(성숙도·외주 "업무에 필요한 …"), 없을 때만 항목 id를 앞에 붙인다.
+      const num = String(item.id == null ? '' : item.id).trim();
+      const showNum = num && !/^\d/.test(String(item.text || '').trim());
+      h += cell(spec.first);
+      h += (showNum ? _esc(num) + ' ' : '') + _sheetEsc(item.text || '');
+      if (item.verification) h += `<div style="margin-top:8px;">${_sheetEsc(item.verification)}</div>`;
+      h += `</div>`;
+      // 2열: 근거
+      h += cell(spec.manual, 'font-size:0.94em;');
+      h += _sheetEsc(item.manual || '');
+      h += `</div>`;
+      // 판정 열
+      marks.forEach(m => {
+        h += cell(spec.judge, judgeCell);
+        h += _sheetMarkHTML(m);
+        h += `</div>`;
+      });
+      // 비고
+      h += cell(spec.remark, '', true);
+      h += _sheetEsc(remarks[item.id] || '');
+      h += `</div>`;
+      h += `</div>`;
+    });
+  }
+  return h;
+}
+
+// 시트 본문 전체 — 최상위 자식이 곧 페이지 분할 블록 단위
+function buildChecklistSheetBody(year, station, type, record) {
+  const reg = CHECKLIST_REGISTRY[type];
+  const title = (reg && reg.name) || getTypeLabel(type) || type;
+  const method = getScoringMethod(type);
+  const spec = _sheetColSpec(method);
+  const company = (record && record.company) || '';
+  const targetLabel = company ? `${station} (${company})` : station;
+  const auditor = (record && record.auditor) || '';
+  const ds = (record && (record.auditDateStart || record.auditDate)) || '';
+  const de = (record && record.auditDateEnd) || '';
+  const period = ds ? (de && de !== ds ? `${ds} ~ ${de}` : ds) : '';
+  const auditees = (record && record.auditees) || '';
+
+  const infoRow = (l1, v1, l2, v2) =>
+    `<div class="sheet-row" style="display:flex;border-left:1px solid ${_SHEET_BD};border-right:1px solid ${_SHEET_BD};border-bottom:1px solid ${_SHEET_BD};">`
+    + `<div style="flex:0 0 50%;max-width:50%;padding:8px 10px;box-sizing:border-box;border-right:1px solid ${_SHEET_BD};">${_esc(l1)}: ${_esc(v1)}</div>`
+    + `<div style="flex:0 0 50%;max-width:50%;padding:8px 10px;box-sizing:border-box;">${_esc(l2)}: ${_esc(v2)}</div>`
+    + `</div>`;
+
+  let h = '';
+  // 블록 1: 로고 헤더 + 문서 제목 + 심사정보표
+  h += `<div class="sheet-block" style="padding-bottom:14px;">`;
+  h += `<div style="display:flex;align-items:center;justify-content:space-between;padding-bottom:8px;border-bottom:1px solid #C0CED1;">`;
+  h += `<div style="display:flex;align-items:center;gap:7px;">`;
+  h += `<svg width="24" height="24" viewBox="0 0 200 200"><rect width="200" height="200" rx="36" fill="#D20015"/><path d="M100 15C101 82 118 99 185 100C118 101 101 118 100 185C99 118 82 101 15 100C82 99 99 82 100 15Z" fill="white"/></svg>`;
+  h += `<span style="font-size:1.35em;font-weight:800;color:#D20015;letter-spacing:0.5px;">EASTAR JET</span>`;
+  h += `</div>`;
+  h += `<span style="font-size:1em;color:#303A3C;">안전보안실</span>`;
+  h += `</div>`;
+  h += `<div style="font-size:1.75em;font-weight:700;color:#000;margin:20px 0 16px;">${_esc(title)}</div>`;
+  h += `<div style="border-top:1px solid ${_SHEET_BD};">`;
+  h += infoRow('감사 대상', targetLabel, '품질감사원', auditor);
+  h += infoRow('감사 기간', period, '감사수검자', auditees);
+  h += `</div>`;
+  h += `</div>`;
+
+  // 블록 2: 열 헤더 (1쪽에만)
+  h += `<div class="sheet-row" style="display:flex;background:#D9D9D9;font-weight:700;text-align:center;border:1px solid ${_SHEET_BD};">`;
+  h += `<div style="flex:0 0 ${spec.first}%;max-width:${spec.first}%;padding:8px 6px;box-sizing:border-box;border-right:1px solid ${_SHEET_BD};">평가항목 / 질문(확인) 내용</div>`;
+  h += `<div style="flex:0 0 ${spec.manual}%;max-width:${spec.manual}%;padding:8px 6px;box-sizing:border-box;border-right:1px solid ${_SHEET_BD};">근거</div>`;
+  spec.labels.forEach(lb => {
+    h += `<div style="flex:0 0 ${spec.judge}%;max-width:${spec.judge}%;padding:8px 2px;box-sizing:border-box;border-right:1px solid ${_SHEET_BD};">${lb}</div>`;
+  });
+  h += `<div style="flex:0 0 ${spec.remark}%;max-width:${spec.remark}%;padding:8px 6px;box-sizing:border-box;">비고</div>`;
+  h += `</div>`;
+
+  // 블록 3~: 본문 행
+  h += _sheetRowsHTML(type, record);
+
+  // 마지막: General Comment (참고 양식과 동일하게 빈 박스 — 수기 기입용)
+  h += `<div class="sheet-row" style="display:flex;background:#D9D9D9;font-weight:700;border-left:1px solid ${_SHEET_BD};border-right:1px solid ${_SHEET_BD};border-bottom:1px solid ${_SHEET_BD};">`;
+  h += `<div style="flex:1 1 100%;padding:8px 10px;box-sizing:border-box;">General Comment</div>`;
+  h += `</div>`;
+  h += `<div class="sheet-row" style="display:flex;min-height:90px;border-left:1px solid ${_SHEET_BD};border-right:1px solid ${_SHEET_BD};border-bottom:1px solid ${_SHEET_BD};">`;
+  h += `<div style="flex:1 1 100%;padding:8px 10px;box-sizing:border-box;">&nbsp;</div>`;
+  h += `</div>`;
+
+  return h;
+}
+
+// 인쇄용 완전 문서
+function buildChecklistSheetDoc(year, station, type, record) {
+  const reg = CHECKLIST_REGISTRY[type];
+  const title = (reg && reg.name) || getTypeLabel(type) || type;
+  const docTitle = `${station} ${title} (${year})`;
+  const body = buildChecklistSheetBody(year, station, type, record);
+  const today = _sheetToday();
+  return '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8">'
+    + `<title>${_esc(docTitle)}</title>`
+    + '<style>'
+    + '@page { size: A4 portrait; margin: 14mm 12mm 18mm; }'
+    + '* { box-sizing: border-box; }'
+    + `body { margin:0; font-family:${_SHEET_FONT}; font-size:10.5pt; line-height:1.5; color:#000; -webkit-print-color-adjust:exact; print-color-adjust:exact; }`
+    + '.sheet-row { page-break-inside: avoid; break-inside: avoid; }'
+    + '.sheet-block { page-break-inside: avoid; break-inside: avoid; }'
+    + '.sheet-wrap { width:100%; }'
+    + '.sheet-footer { display:none; font-size:9pt; color:#555; }'
+    + '@media screen { body { background:#F4F6F8; padding:0 0 40px; } .sheet-wrap { background:#fff; max-width:820px; margin:0 auto; padding:28px 32px 40px; box-shadow:0 4px 24px rgba(0,0,0,0.12); } }'
+    + '@media print { .no-print { display:none !important; } .sheet-wrap { max-width:none; margin:0; padding:0; box-shadow:none; }'
+    + '  .sheet-footer { display:flex; position:fixed; left:0; right:0; bottom:-12mm; justify-content:center; } '
+    + '  .sheet-footer .pg::after { content: counter(page); } .sheet-footer .dt { position:absolute; right:0; } }'
+    + '.tbar { position:sticky; top:0; background:#303A3C; color:#fff; padding:12px 20px; display:flex; align-items:center; gap:14px; font-family:' + _SHEET_FONT + '; font-size:13px; }'
+    + '.tbar button { background:#D20015; color:#fff; border:0; border-radius:999px; padding:8px 20px; font-size:13px; font-weight:600; cursor:pointer; }'
+    + '</style></head><body>'
+    + '<div class="tbar no-print"><button onclick="window.print()">인쇄 / PDF로 저장</button>'
+    + '<span>인쇄 대화상자의 <b>대상</b>에서 &quot;PDF로 저장&quot;을 선택하세요.</span></div>'
+    + `<div class="sheet-wrap">${body}</div>`
+    + `<div class="sheet-footer"><span class="pg"></span><span class="dt">${today}</span></div>`
+    + '</body></html>';
+}
+
+// 출력 경로 ①: 인쇄창 (벡터 텍스트 — 참고 양식과 동일 품질)
+function printChecklistSheet(year, station, type, company) {
+  const record = _findAssessmentRecord(year, station, type, company);
+  if (!record) { showToast('해당 점검표의 저장된 기록이 없습니다.', 'warning'); return; }
+  const doc = buildChecklistSheetDoc(year, station, type, record);
+  const w = window.open('', '_blank');
+  if (w && w.document) {
+    w.document.open();
+    w.document.write(doc);
+    w.document.close();
+    setTimeout(() => { try { w.focus(); w.print(); } catch (e) { /* 사용자가 상단 버튼으로 직접 인쇄 */ } }, 500);
+    return;
+  }
+  // 팝업 차단 폴백 — 화면 밖 iframe으로 인쇄
+  const ifr = document.createElement('iframe');
+  ifr.setAttribute('style', 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;');
+  ifr.onload = () => {
+    try { ifr.contentWindow.focus(); ifr.contentWindow.print(); } catch (e) { console.error(e); }
+    setTimeout(() => ifr.remove(), 60000);
+  };
+  document.body.appendChild(ifr);
+  ifr.srcdoc = doc;
+}
+
+// 출력 경로 ②: 원클릭 PDF 다운로드 (html2canvas 행 단위 캡처 + jsPDF)
+async function downloadChecklistSheetPDF(year, station, type, company) {
+  const record = _findAssessmentRecord(year, station, type, company);
+  if (!record) { showToast('해당 점검표의 저장된 기록이 없습니다.', 'warning'); return; }
+  const hasH2C = typeof html2canvas !== 'undefined';
+  const hasJsPDF = typeof window.jspdf !== 'undefined' && window.jspdf.jsPDF;
+  if (!hasH2C || !hasJsPDF) { _sdToast(`PDF 라이브러리 로딩 실패 (h2c:${hasH2C}, jspdf:${!!hasJsPDF})`, false); return; }
+  _sdToast('PDF 생성 중…');
+
+  const host = document.createElement('div');
+  host.id = 'checklistSheetHost';
+  host.style.cssText = `position:fixed;left:-10000px;top:0;width:${_SHEET_W}px;background:#ffffff;`
+    + `font-family:${_SHEET_FONT};font-size:11px;line-height:1.5;color:#000;`;
+  host.innerHTML = buildChecklistSheetBody(year, station, type, record);
+  document.body.appendChild(host);
+
+  try {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'mm', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const marginX = 12, marginTop = 14, marginBottom = 16;
+    const contentW = pageW - marginX * 2;
+    const bottomLimit = pageH - marginBottom;
+    const maxBlockH = bottomLimit - marginTop;
+    let cursorY = marginTop;
+
+    // 캡처는 시트 전체를 한 번만 — 블록마다 html2canvas를 부르면 호출마다 문서 전체를
+    // 복제하느라 점검표 1장에 수십 초가 걸린다. 대신 행(자식 블록)의 offsetTop을 미리 읽어
+    // '어디서 자를지'를 계산해 두고, 한 장의 캔버스를 그 지점에서만 잘라 쪽을 나눈다.
+    // → html2canvas 호출 1회 + 행이 절대 잘리지 않는 페이지 분할.
+    const hostPxPerMM = host.offsetWidth / contentW;
+    const maxPagePx = maxBlockH * hostPxPerMM;      // 한 쪽에 담을 수 있는 host 기준 높이(px)
+    const kids = Array.from(host.children);
+    const cuts = [];                                 // [{from, to}] host 좌표계 px
+    let pageStart = 0;
+    kids.forEach(k => {
+      const top = k.offsetTop, bottom = top + k.offsetHeight;
+      if (bottom - pageStart > maxPagePx) {
+        if (top > pageStart) { cuts.push({ from: pageStart, to: top }); pageStart = top; }
+        // 단일 블록이 한 쪽보다 큰 예외 — 그 블록 안에서 강제 분할
+        while (bottom - pageStart > maxPagePx) {
+          cuts.push({ from: pageStart, to: pageStart + maxPagePx });
+          pageStart += maxPagePx;
+        }
+      }
+    });
+    const totalPx = host.offsetHeight;
+    if (totalPx > pageStart) cuts.push({ from: pageStart, to: totalPx });
+
+    const canvas = await html2canvas(host, { scale: 2, backgroundColor: '#ffffff', logging: false });
+    const scale = canvas.width / host.offsetWidth;
+    cuts.forEach((cut, idx) => {
+      const srcY = Math.round(cut.from * scale);
+      const srcH = Math.min(Math.round((cut.to - cut.from) * scale), canvas.height - srcY);
+      if (srcH <= 0) return;
+      const slice = document.createElement('canvas');
+      slice.width = canvas.width; slice.height = srcH;
+      const sctx = slice.getContext('2d');
+      sctx.fillStyle = '#ffffff'; sctx.fillRect(0, 0, slice.width, slice.height);
+      sctx.drawImage(canvas, 0, srcY, canvas.width, srcH, 0, 0, canvas.width, srcH);
+      if (idx > 0) { pdf.addPage(); cursorY = marginTop; }
+      // compression 인자를 빼면 jsPDF가 PNG를 무압축(raw)으로 넣어 3쪽짜리가 28MB까지 커진다.
+      // 'FAST'(FlateEncode)를 주면 흰 바탕 텍스트 이미지가 수십분의 1로 줄고 선명도는 그대로.
+      pdf.addImage(slice.toDataURL('image/png'), 'PNG', marginX, cursorY, contentW, srcH / scale / hostPxPerMM, undefined, 'FAST');
+    });
+
+    // 푸터: 쪽번호(가운데) + 출력일(오른쪽) — 모두 ASCII라 한글 폰트 불필요
+    const today = _sheetToday();
+    const totalPages = pdf.internal.getNumberOfPages();
+    for (let p = 1; p <= totalPages; p++) {
+      pdf.setPage(p);
+      pdf.setFont('helvetica', 'normal'); pdf.setFontSize(9); pdf.setTextColor('#555555');
+      pdf.text(`${p}/${totalPages}`, pageW / 2, pageH - 8, { align: 'center' });
+      pdf.text(today, pageW - marginX, pageH - 8, { align: 'right' });
+    }
+
+    pdf.save(_sheetFilename(year, station, type) + '.pdf');
+    _sdToast('PDF 다운로드 완료');
+  } catch (err) {
+    console.error(err);
+    _sdToast('PDF 생성 실패: ' + (err && err.message ? err.message : err), false);
+  } finally {
+    host.remove();
+  }
+}
+
+function openChecklistSheet(year, station, type, company, mode) {
+  if (mode === 'print') return printChecklistSheet(year, station, type, company);
+  return downloadChecklistSheetPDF(year, station, type, company);
+}
+
+// ---- 점검표 출력 선택 모달 -------------------------------------------------
+// type 없이 부르면 1단계(점검표 선택) → 2단계(출력 방식). type을 주면 곧바로 2단계.
+function _sheetPickerClose() {
+  const el = document.getElementById('sheetPickerOverlay');
+  if (el) el.remove();
+}
+
+function _sheetPickerBtn(label, desc) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.style.cssText = 'display:block;width:100%;text-align:left;background:#fff;border:1px solid #C0CED1;border-radius:12px;padding:14px 16px;margin-bottom:10px;cursor:pointer;font-family:inherit;';
+  b.onmouseover = () => { b.style.borderColor = '#D20015'; };
+  b.onmouseout = () => { b.style.borderColor = '#C0CED1'; };
+  b.innerHTML = `<span style="font-size:14px;font-weight:600;color:#303A3C;">${_esc(label)}</span>`
+    + (desc ? `<span style="display:block;font-size:12px;color:#9EA2A1;margin-top:3px;">${_esc(desc)}</span>` : '');
+  return b;
+}
+
+function _sheetPickerRenderModes(card, year, station, type, company) {
+  const reg = CHECKLIST_REGISTRY[type];
+  const name = (reg && reg.name) || getTypeLabel(type) || type;
+  card.innerHTML = `<div style="font-size:16px;font-weight:700;color:#303A3C;margin-bottom:4px;">점검표 출력</div>`
+    + `<div style="font-size:13px;color:#9EA2A1;margin-bottom:16px;">${_esc(year)}년 · ${_esc(station)} · ${_esc(name)}</div>`;
+  const bPrint = _sheetPickerBtn('인쇄 / PDF로 저장', '글자가 살아있는 고품질 출력 (인쇄 대화상자에서 "PDF로 저장" 선택)');
+  bPrint.onclick = () => { _sheetPickerClose(); printChecklistSheet(year, station, type, company); };
+  const bPdf = _sheetPickerBtn('PDF 파일 바로 다운로드', '버튼 한 번에 .pdf 저장 (이미지 방식이라 용량이 큽니다)');
+  bPdf.onclick = () => { _sheetPickerClose(); downloadChecklistSheetPDF(year, station, type, company); };
+  card.appendChild(bPrint);
+  card.appendChild(bPdf);
+  const close = _sheetPickerBtn('닫기', '');
+  close.style.textAlign = 'center';
+  close.style.marginTop = '4px';
+  close.onclick = _sheetPickerClose;
+  card.appendChild(close);
+}
+
+function _sheetPickerRenderTypes(card, year, station) {
+  const recs = allData.filter(d => d.year == year && (d.station === station || d.division === station));
+  card.innerHTML = `<div style="font-size:16px;font-weight:700;color:#303A3C;margin-bottom:4px;">점검표 선택</div>`
+    + `<div style="font-size:13px;color:#9EA2A1;margin-bottom:16px;">${_esc(year)}년 · ${_esc(station)}</div>`;
+  if (!recs.length) {
+    card.innerHTML += `<div style="font-size:13px;color:#9EA2A1;padding:12px 0;">저장된 점검표가 없습니다.</div>`;
+  }
+  recs.forEach(r => {
+    const reg = CHECKLIST_REGISTRY[r.type];
+    const name = (reg && reg.name) || getTypeLabel(r.type) || r.type;
+    const desc = [r.company || '', r.partial ? '작성 중' : ''].filter(Boolean).join(' · ');
+    const b = _sheetPickerBtn(name, desc);
+    b.onclick = () => _sheetPickerRenderModes(card, year, station, r.type, r.company);
+    card.appendChild(b);
+  });
+  const close = _sheetPickerBtn('닫기', '');
+  close.style.textAlign = 'center';
+  close.style.marginTop = '4px';
+  close.onclick = _sheetPickerClose;
+  card.appendChild(close);
+}
+
+// 상세 페이지 다운로드 메뉴 → 점검표 선택 모달
+function openSdChecklistSheetPicker() {
+  const menu = document.getElementById('sdDownloadMenu');
+  if (menu) menu.classList.remove('open');
+  if (!stationDetailStation) { showToast('대상을 먼저 선택해주세요.', 'warning'); return; }
+  openChecklistSheetPicker(stationDetailYear, stationDetailStation, null, null);
+}
+
+function openChecklistSheetPicker(year, station, type, company) {
+  _sheetPickerClose();
+  const ov = document.createElement('div');
+  ov.id = 'sheetPickerOverlay';
+  ov.style.cssText = 'position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);z-index:10000;display:flex;align-items:center;justify-content:center;padding:20px;';
+  ov.addEventListener('click', (e) => { if (e.target === ov) _sheetPickerClose(); });
+  const card = document.createElement('div');
+  card.style.cssText = 'background:#fff;border-radius:16px;max-width:440px;width:100%;padding:22px;box-shadow:0 12px 40px rgba(0,0,0,0.25);max-height:80vh;overflow:auto;';
+  ov.appendChild(card);
+  document.body.appendChild(ov);
+  if (type) _sheetPickerRenderModes(card, year, station, type, company);
+  else _sheetPickerRenderTypes(card, year, station);
+}
+
+// ========================================================================
 // 전자결재(기안서) 결과보고 생성 — v19.17.0
 // eastar-draft 스킬 양식(바탕체 11pt, "아 래", 1./가./1) 번호체계) 이식.
 // 지점/실본부 상세 데이터를 회사 그룹웨어 전자결재 HTML로 조립.
@@ -19040,6 +19497,8 @@ Object.assign(window, {
   clDownloadTemplate, clImportExcel,
   // Detail page download (v19.8.0)
   toggleSdDownloadMenu, downloadDetailPDF, downloadDetailHTML, copyDetailHTMLToClipboard, goToChecklistView,
+  // 점검표 시트 출력 (v19.46.0) — inline onclick에서 호출하므로 반드시 노출 (미노출 시 무동작)
+  openChecklistSheetPicker, openSdChecklistSheetPicker, openChecklistSheet, printChecklistSheet, downloadChecklistSheetPDF,
   // 상세 페이지 연도 선택 드롭다운 (v19.30.0) — inline onclick 핸들러
   toggleSdYearMenu, changeDetailYear, getDetailYears,
   // 전자결재 결과보고 입력 패널 (v19.17.0) — inline onclick/oninput 핸들러
