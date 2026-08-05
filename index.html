@@ -881,6 +881,7 @@ select.apple-input {
     <button onclick="switchTab(0)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-active" data-tab="0" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">홈</button>
     <button onclick="switchTab(1)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="1" data-tab-alt="2" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">점검</button>
     <button onclick="switchTab(3)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="3" data-tab-alt="4" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">인사이트</button>
+    <button onclick="switchTab(8)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="8" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">품질지표</button>
     <button onclick="switchTab(5)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="5" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">일정</button>
     <button onclick="switchTab(7)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="7" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">메모</button>
     <button onclick="switchTab(6)" class="desktop-tab px-5 py-2.5 whitespace-nowrap tab-inactive" data-tab="6" style="font-size:13px;font-weight:400;letter-spacing:-0.224px;background:none;border:none;cursor:pointer;">관리</button>
@@ -1338,6 +1339,43 @@ select.apple-input {
     <div id="scheduleContainer"></div>
   </div>
 
+  <!-- Tab 8: 품질자체지표 (v19.48.0) -->
+  <div id="tab8" class="tab-content hidden fade-in">
+    <div class="mb-6">
+      <h2 class="section-title">품질자체지표</h2>
+      <p class="section-subtitle mt-1">지표 발생 건을 누적해 운항량 대비 발생률·목표 대비·경보 수준을 관리합니다 (건/만편)</p>
+    </div>
+
+    <!-- 필터 -->
+    <div class="apple-card p-4 mb-4">
+      <div class="flex flex-wrap items-end gap-3">
+        <div>
+          <label class="apple-label block mb-1">연도</label>
+          <select id="qiYear" class="apple-input" style="min-width:110px;" onchange="qiOnFilterChange()"></select>
+        </div>
+        <div>
+          <label class="apple-label block mb-1">지표구분</label>
+          <select id="qiCategory" class="apple-input" style="min-width:150px;" onchange="qiOnFilterChange()"></select>
+        </div>
+        <div>
+          <label class="apple-label block mb-1">그룹</label>
+          <select id="qiGroup" class="apple-input" style="min-width:150px;" onchange="qiOnFilterChange()"></select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 서브탭 -->
+    <div class="flex gap-2 mb-5 overflow-x-auto" id="qiSubTabBar">
+      <button id="qiSubStatus" class="sub-tab sub-tab-active" onclick="qiSwitchSubTab('status')">현황</button>
+      <button id="qiSubEvents" class="sub-tab sub-tab-inactive" onclick="qiSwitchSubTab('events')">발생 기록</button>
+      <button id="qiSubConfig" class="sub-tab sub-tab-inactive" onclick="qiSwitchSubTab('config')" style="display:none;">설정</button>
+    </div>
+
+    <div id="qiStatusContent"></div>
+    <div id="qiEventsContent" class="hidden"></div>
+    <div id="qiConfigContent" class="hidden"></div>
+  </div>
+
   <!-- Tab 7: Memo Workspace (v19.11.0) -->
   <div id="tab7" class="tab-content hidden fade-in">
     <div class="mb-6">
@@ -1604,7 +1642,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.47.1</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.48.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1744,28 +1782,33 @@ select.apple-input {
   <div id="memoBottomSheetBody"></div>
 </div>
 
-<!-- Mobile Bottom Tab Bar - Glass (5탭: 홈/입력/조회/인사이트/일정) -->
+<!-- Mobile Bottom Tab Bar - Glass (6탭: 홈/점검/인사이트/지표/일정/메모 · v19.48.0에서 지표 추가) -->
 <nav class="mobile-tabs fixed bottom-0 left-0 right-0 glass-bottom z-50 md:hidden flex justify-around" id="mobileTabBar" style="height:auto;min-height:56px;padding:4px 0 calc(8px + env(safe-area-inset-bottom));">
   <button onclick="switchTab(0)" class="mobile-tab flex flex-col items-center justify-center py-1 px-2 min-w-0 flex-1" data-tab="0" style="background:none;border:none;cursor:pointer;min-height:44px;">
     <svg class="w-5 h-5" style="color:#D20015;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>
-    <span style="font-size:11px;margin-top:2px;color:#D20015;font-weight:600;letter-spacing:-0.224px;">홈</span>
+    <span style="font-size:10px;margin-top:2px;color:#D20015;font-weight:600;letter-spacing:-0.224px;">홈</span>
   </button>
   <button onclick="switchTab(1)" class="mobile-tab flex flex-col items-center justify-center py-1 px-2 min-w-0 flex-1" data-tab="1" data-tab-alt="2" style="background:none;border:none;cursor:pointer;min-height:44px;">
     <svg class="w-5 h-5" style="color:#9EA2A1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/></svg>
-    <span style="font-size:11px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">점검</span>
+    <span style="font-size:10px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">점검</span>
   </button>
   <button onclick="switchTab(3)" class="mobile-tab flex flex-col items-center justify-center py-1 px-2 min-w-0 flex-1" data-tab="3" data-tab-alt="4" style="background:none;border:none;cursor:pointer;min-height:44px;">
     <svg class="w-5 h-5" style="color:#9EA2A1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
-    <span style="font-size:11px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">인사이트</span>
+    <span style="font-size:10px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">인사이트</span>
+  </button>
+  <!-- v19.48.0: 품질자체지표 탭 (6개 분할이라 라벨을 2자로 줄이고 폰트도 한 단계 작게) -->
+  <button onclick="switchTab(8)" class="mobile-tab flex flex-col items-center justify-center py-1 px-2 min-w-0 flex-1" data-tab="8" style="background:none;border:none;cursor:pointer;min-height:44px;">
+    <svg class="w-5 h-5" style="color:#9EA2A1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+    <span style="font-size:10px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">지표</span>
   </button>
   <button onclick="switchTab(5)" class="mobile-tab flex flex-col items-center justify-center py-1 px-2 min-w-0 flex-1" data-tab="5" style="background:none;border:none;cursor:pointer;min-height:44px;">
     <svg class="w-5 h-5" style="color:#9EA2A1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-    <span style="font-size:11px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">일정</span>
+    <span style="font-size:10px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">일정</span>
   </button>
   <!-- v19.11.0: 메모 탭 -->
   <button onclick="switchTab(7)" class="mobile-tab flex flex-col items-center justify-center py-1 px-2 min-w-0 flex-1" data-tab="7" style="background:none;border:none;cursor:pointer;min-height:44px;">
     <svg class="w-5 h-5" style="color:#9EA2A1;" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9h6m-6 4h4"/></svg>
-    <span style="font-size:11px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">메모</span>
+    <span style="font-size:10px;margin-top:2px;color:#9EA2A1;letter-spacing:-0.224px;">메모</span>
   </button>
 </nav>
 
@@ -1782,7 +1825,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.47.1',
+  version: '19.48.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -3197,6 +3240,13 @@ const MEMO_STORAGE_KEY = 'eastar_' + APP_ENV + '_memos';
 // v19.44.0: 심사 결과 확정(잠금) 저장소 — { [year_station]: {lockedAt, lockedBy, lockedByName} }
 // 확정된 대상은 관리자 외 작성·수정·삭제 불가. 대상(지점/실·본부) 단위이며 그 대상의 점검표 전체에 적용.
 const LOCKS_STORAGE_KEY = 'eastar_' + APP_ENV + '_locked_targets';
+// v19.48.0: 품질자체지표(Quality Indicator) 저장소
+//   master  — { [indId]: 지표 마스터 }
+//   events  — { [year]: { [evId]: 발생 기록 } }
+//   flights — { [year]: {dom:[12], intl:[12]} }  발생률 분모(국내·국제 운항편수)
+const QI_MASTER_KEY = 'eastar_' + APP_ENV + '_qi_master';
+const QI_EVENTS_KEY = 'eastar_' + APP_ENV + '_qi_events';
+const QI_FLIGHTS_KEY = 'eastar_' + APP_ENV + '_qi_flights';
 let lockedTargets = {};
 
 function _lockKey(year, station) {
@@ -3723,7 +3773,7 @@ async function createBackup(trigger) {
   // ID: 2026-05-06_18-00-00Z (path-safe — Firebase가 . / # $ [ ] 못 씀)
   const id = now.toISOString().replace(/[:.]/g, '-').replace('T', '_').slice(0, 19) + 'Z';
 
-  const [aSnap, auSnap, sSnap, csSnap, mSnap, cSnap, rmSnap, ciSnap, ccSnap, cmSnap, ltSnap] = await Promise.all([
+  const [aSnap, auSnap, sSnap, csSnap, mSnap, cSnap, rmSnap, ciSnap, ccSnap, cmSnap, ltSnap, qiSnap] = await Promise.all([
     dbRef('assessments').once('value'),
     dbRef('auditors').once('value'),
     dbRef('schedule').once('value'),
@@ -3735,6 +3785,7 @@ async function createBackup(trigger) {
     dbRef('carCategories').once('value'),
     dbRef('checklistMaster').once('value'),
     dbRef('lockedTargets').once('value'), // v19.44.0
+    dbRef('qualityIndicators').once('value'), // v19.48.0
   ]);
 
   const cnt = (v) => v && typeof v === 'object' ? Object.keys(v).length : 0;
@@ -3758,6 +3809,7 @@ async function createBackup(trigger) {
       reportMeta: cnt(rmSnap.val()),
       carItems: cnt(ciSnap.val()),
       checklistMaster: cnt(cmSnap.val()),
+      qualityIndicators: cnt((qiSnap.val() || {}).master), // v19.48.0 — 지표 마스터 개수
     },
     data: {
       assessments: aSnap.val() || {},
@@ -3771,6 +3823,7 @@ async function createBackup(trigger) {
       carCategories: ccSnap.val() || null,
       checklistMaster: cmSnap.val() || null,
       lockedTargets: ltSnap.val() || null, // v19.44.0
+      qualityIndicators: qiSnap.val() || null, // v19.48.0
     }
   };
 
@@ -3832,6 +3885,7 @@ async function restoreFromBackup(backupId) {
     dbRef('carCategories').set(data.carCategories || null),
     dbRef('checklistMaster').set(data.checklistMaster || null),
     dbRef('lockedTargets').set(data.lockedTargets || null), // v19.44.0
+    dbRef('qualityIndicators').set(data.qualityIndicators || null), // v19.48.0 (Rules에서 이 루트 write는 admin 전용)
   ]);
   showToast('복원 완료. 페이지를 새로고침합니다...', 'success');
   setTimeout(() => location.reload(), 2000);
@@ -4173,6 +4227,8 @@ async function onLoginSuccess() {
   loadCarCategoriesFromFirebase();
   // v19.27.0: 점검표 마스터 override 명시 로드
   loadChecklistMasterFromFirebase();
+  // v19.48.0: 품질자체지표 명시 로드 (master/events/flights)
+  qiLoadAllFromFirebase();
 
   // v19.14.0: 자동 백업 — admin이고 24h 경과 시
   try { maybeAutoBackup(); } catch(e) { console.warn('maybeAutoBackup failed:', e); }
@@ -5130,6 +5186,7 @@ function switchTab(idx, _fromPopstate) {
   if (idx === 5) { schedulePhase = 1; currentScheduleId = null; renderSchedule(); } // reset without history push (switchTab already records)
   if (idx === 6) renderDataManagement();
   if (idx === 7) renderMemoWorkspace(); // v19.11.0
+  if (idx === 8) renderQiTab(); // v19.48.0 품질자체지표
   // v18.0.0: 세그먼트 업데이트
   updateCheckSegment(idx);
   updateInsightSegment(idx);
@@ -12823,6 +12880,50 @@ function setupFirebaseListeners() {
     }
   }, (err) => { console.warn('carItems listener cancelled:', err && err.code); });
 
+  // v19.48.0: 품질자체지표 실시간 동기화 (master / events / flights)
+  // per-key write 도메인이라 _fbFirstSync 가드는 불필요. 갱신 가드는 appWrapper 가시성 + 편집 중 여부.
+  const _qiRefresh = () => {
+    try {
+      const wrap = document.getElementById('appWrapper');
+      if (wrap && wrap.style.display !== 'none' && !_qiEditing) refreshCurrentView();
+    } catch (e) {}
+  };
+  dbRef('qualityIndicators/master').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+    const local = {};
+    for (const [id, v] of Object.entries(data)) { const m = _qiNormalizeMaster(v); if (m) local[id] = m; }
+    if (JSON.stringify(SafeStorage.get(QI_MASTER_KEY, {})) !== JSON.stringify(local)) {
+      SafeStorage.set(QI_MASTER_KEY, local);
+      _qiRefresh();
+    }
+  }, (err) => { console.warn('qi master listener cancelled:', err && err.code); });
+
+  dbRef('qualityIndicators/events').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+    const local = {};
+    for (const [y, grp] of Object.entries(data)) {
+      local[y] = {};
+      for (const [id, v] of Object.entries(grp || {})) { const ev = _qiNormalizeEvent(v); if (ev) local[y][id] = ev; }
+    }
+    if (JSON.stringify(SafeStorage.get(QI_EVENTS_KEY, {})) !== JSON.stringify(local)) {
+      SafeStorage.set(QI_EVENTS_KEY, local);
+      _qiRefresh();
+    }
+  }, (err) => { console.warn('qi events listener cancelled:', err && err.code); });
+
+  dbRef('qualityIndicators/flights').on('value', (snapshot) => {
+    const data = snapshot.val();
+    if (!data) return;
+    const local = {};
+    for (const [y, v] of Object.entries(data)) { const f = _qiNormalizeFlights(v); if (f) local[y] = f; }
+    if (JSON.stringify(SafeStorage.get(QI_FLIGHTS_KEY, {})) !== JSON.stringify(local)) {
+      SafeStorage.set(QI_FLIGHTS_KEY, local);
+      _qiRefresh();
+    }
+  }, (err) => { console.warn('qi flights listener cancelled:', err && err.code); });
+
   // v19.23.0: CAR 영역 마스터(carCategories) 실시간 동기화
   dbRef('carCategories').on('value', (snapshot) => {
     const fb = snapshot.val();
@@ -12947,6 +13048,8 @@ function refreshCurrentView() {
   // v19.12.4: 누락 탭 보강 — 데이터 관리/메모 탭 머물 때 데이터 도착해도 UI 안 갱신되던 버그
   if (tab === 6) { try { if (typeof renderDataManagement === 'function') renderDataManagement(); } catch(e) {} }
   if (tab === 7) { try { if (typeof renderMemoWorkspace === 'function') renderMemoWorkspace(); } catch(e) {} }
+  // v19.48.0: 지표 탭 — 마스터·편수 편집 중이면 폼이 날아가므로 갱신을 미룬다
+  if (tab === 8) { try { if (!_qiEditing && typeof renderQiTab === 'function') renderQiTab(); } catch(e) {} }
 }
 
 // Firebase 키에 . # $ / [ ] 사용 불가 → 변환 헬퍼
@@ -16531,6 +16634,1282 @@ function loadReportMetaFromFirebase() {
 }
 
 // =============================================================================
+// v19.48.0: 품질자체지표(Quality Indicator) — 지표 마스터 / 발생 기록 / 운항편수
+// =============================================================================
+// Firebase 구조 ($env/qualityIndicators/):
+//   master/{indId}         지표 마스터
+//   events/{year}/{evId}   발생 기록
+//   flights/{year}         운항편수(발생률 분모)
+// 쓰기는 반드시 child('master/'+id).set(...) 형태의 per-key. 루트 .set()은
+// restoreFromBackup(admin)만 예외 — carItems·reportMeta와 동일한 wipe-safe 패턴.
+//
+// 취지: 자체 품질심사 활동으로 대외 점검(국토부 상시·특별·AOC) 지적을 사전에 예방한다.
+//       심사 산출물인 CAR과는 성격이 다른 별개 지표군이라 발생 건은 수동 등록한다.
+
+const QI_DEPTS = ['정비', '운항', '객실', '종합통제', '운송', '안전보안', '운송(화물)'];
+const QI_IOSA = ['ORG', 'FLT', 'DSP', 'MNT', 'CAB', 'GRH', 'CGO', 'SEC'];
+const QI_SOURCES = ['국토부 상시점검', '국토부 특별점검', 'AOC 정기점검', '자체 품질심사', '기타'];
+const QI_DIRECTIONS = { LOWER: 'lower', HIGHER: 'higher' };
+const QI_DEFAULT_FORMULA = '발생건수 ÷ ((국내편수 + 국제편수) ÷ 2) × 10,000';
+const QI_ALERT_LEVELS = ['none', 'caution', 'warning', 'critical'];
+const QI_ALERT_META = {
+  none:     { label: '정상',   color: '#39B54A' },
+  caution:  { label: '주의',   color: '#FFD200', text: '#303A3C' },
+  warning:  { label: '경계',   color: '#F7941E' },
+  critical: { label: '심각',   color: '#EE3124' },
+};
+
+// 2026년 확정 지표 5개 (안전기획팀 KPI 3, 3개년 평균 기준 · 합계 4.209 건/만편).
+// 정의·부문·IOSA는 원본 자료에 없어 비워둔다 — 화면에서 직접 채운다.
+const QI_SEED_2026 = [
+  { name: '비정상 상황 대응 관련',   target: 0.474 },
+  { name: '비상구열 좌석 절차 관련', target: 1.111 },
+  { name: '위험물 관리 관련',        target: 0.474 },
+  { name: '조업사 품질 평가 관련',   target: 0.555 },
+  { name: '매뉴얼 관련',             target: 1.595 },
+];
+
+// 지표 마스터·운항편수 편집 중이면 listener가 화면을 다시 그리지 않게 막는다.
+// (carItems는 편집이 상세 페이지라 안 겪던 문제 — 여기선 폼이 탭 안에 있어 입력이 날아감)
+let _qiEditing = false;
+
+function makeQiId() { return 'qi_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
+function makeQiEventId() { return 'qe_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8); }
+
+function canEditQiMaster() { return hasRole('admin'); }
+function canEditQiEvent() { return hasRole('auditor'); }
+
+// Firebase가 sparse 배열을 {0:..,1:..} 객체로 돌려주므로 복원이 필요하다 (_rmToArr와 같은 사정).
+function _qiToArr(o) {
+  if (Array.isArray(o)) return o;
+  if (o && typeof o === 'object') return Object.keys(o).sort((a, b) => (+a) - (+b)).map(i => o[i]);
+  return [];
+}
+// 숫자 파싱 — 빈 값·비숫자는 null (0과 구분해야 한다)
+function _qiNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Number(v);
+  return isFinite(n) ? n : null;
+}
+// 12칸 월별 배열로 정규화
+function _qiPad12(v) {
+  const a = _qiToArr(v).map(_qiNum);
+  while (a.length < 12) a.push(null);
+  return a.slice(0, 12);
+}
+// Firebase set이 undefined를 거부하므로 제거. 빈 배열은 저장 시 사라지므로 로드에서 || [] 처리.
+function _qiClean(o) { return JSON.parse(JSON.stringify(o || {})); }
+
+function _qiNormalizeMaster(v) {
+  if (!v || typeof v !== 'object') return null;
+  const m = Object.assign({}, v);
+  m.depts = _qiToArr(m.depts).filter(Boolean);
+  m.iosa = _qiToArr(m.iosa).filter(Boolean);
+  m.dataSource = _qiToArr(m.dataSource).filter(Boolean);
+  m.target = _qiNum(m.target);
+  m.order = _qiNum(m.order) || 0;
+  m.direction = (m.direction === QI_DIRECTIONS.HIGHER) ? QI_DIRECTIONS.HIGHER : QI_DIRECTIONS.LOWER;
+  m.active = (m.active !== false);
+  m.monitoringOnly = (m.monitoringOnly === true);
+  const al = m.alert || {};
+  m.alert = {
+    mode: (al.mode === 'manual') ? 'manual' : 'sigma',
+    caution: _qiNum(al.caution), warning: _qiNum(al.warning), critical: _qiNum(al.critical),
+  };
+  return m;
+}
+function _qiNormalizeEvent(v) {
+  if (!v || typeof v !== 'object') return null;
+  const e = Object.assign({}, v);
+  e.year = _qiNum(e.year);
+  e.month = _qiNum(e.month);
+  e.count = _qiNum(e.count);
+  if (e.count === null) e.count = 1;
+  return e;
+}
+function _qiNormalizeFlights(v) {
+  if (!v || typeof v !== 'object') return null;
+  return { year: _qiNum(v.year), dom: _qiPad12(v.dom), intl: _qiPad12(v.intl),
+           updatedAt: v.updatedAt || null, updatedBy: v.updatedBy || null };
+}
+
+// ---- 지표 마스터 ----
+function qiLoadMaster() {
+  const all = SafeStorage.get(QI_MASTER_KEY, {});
+  const out = {};
+  for (const [id, v] of Object.entries(all || {})) {
+    const m = _qiNormalizeMaster(v);
+    if (m) out[id] = m;
+  }
+  return out;
+}
+// opt: {activeOnly, group, category} — order → name 순 정렬
+function qiListMaster(opt) {
+  const o = opt || {};
+  let list = Object.values(qiLoadMaster());
+  if (o.activeOnly !== false) list = list.filter(m => m.active);
+  if (o.group) list = list.filter(m => (m.group || '') === o.group);
+  if (o.category) list = list.filter(m => (m.category || '') === o.category);
+  return list.sort((a, b) => (a.order - b.order) || String(a.name || '').localeCompare(String(b.name || ''), 'ko'));
+}
+function qiGetMaster(indId) { return qiLoadMaster()[indId] || null; }
+
+function qiSaveMaster(ind) {
+  if (!ind || !ind.id) return null;
+  const clean = _qiClean(_stampQi(ind));
+  const all = SafeStorage.get(QI_MASTER_KEY, {});
+  all[ind.id] = clean;
+  SafeStorage.set(QI_MASTER_KEY, all);
+  if (firebaseDb) {
+    const ref = dbRef('qualityIndicators');
+    if (ref) ref.child('master/' + ind.id).set(clean)
+      .then(() => console.log('qi master saved:', ind.id))
+      .catch(e => console.warn('qi master Firebase save failed:', e));
+  }
+  return clean;
+}
+// 삭제는 soft delete가 기본 — 과거 발생기록이 고아가 되는 것을 막는다.
+function qiDeactivateMaster(indId, active) {
+  const m = qiGetMaster(indId);
+  if (!m) return null;
+  m.active = (active === true);
+  return qiSaveMaster(m);
+}
+// 하드 삭제는 연결된 발생기록이 0건일 때만 호출할 것 (호출부에서 검사)
+function qiRemoveMaster(indId) {
+  const all = SafeStorage.get(QI_MASTER_KEY, {});
+  delete all[indId];
+  SafeStorage.set(QI_MASTER_KEY, all);
+  if (firebaseDb) {
+    const ref = dbRef('qualityIndicators');
+    if (ref) ref.child('master/' + indId).remove()
+      .catch(e => console.warn('qi master Firebase remove failed:', e));
+  }
+}
+
+// ---- 발생 기록 ----
+function qiLoadEventsAll() { return SafeStorage.get(QI_EVENTS_KEY, {}); }
+function qiLoadEvents(year) {
+  const all = qiLoadEventsAll();
+  const grp = all[String(year)] || {};
+  return Object.values(grp).map(_qiNormalizeEvent).filter(Boolean);
+}
+function qiSaveEvent(ev) {
+  if (!ev || !ev.id || !ev.year) return null;
+  const clean = _qiClean(_stampQi(ev));
+  const all = qiLoadEventsAll();
+  const y = String(ev.year);
+  if (!all[y]) all[y] = {};
+  all[y][ev.id] = clean;
+  SafeStorage.set(QI_EVENTS_KEY, all);
+  if (firebaseDb) {
+    const ref = dbRef('qualityIndicators');
+    if (ref) ref.child('events/' + y + '/' + ev.id).set(clean)
+      .then(() => console.log('qi event saved:', ev.id))
+      .catch(e => console.warn('qi event Firebase save failed:', e));
+  }
+  return clean;
+}
+function qiDeleteEvent(year, evId) {
+  const all = qiLoadEventsAll();
+  const y = String(year);
+  if (all[y]) {
+    delete all[y][evId];
+    if (!Object.keys(all[y]).length) delete all[y];
+    SafeStorage.set(QI_EVENTS_KEY, all);
+  }
+  if (firebaseDb) {
+    const ref = dbRef('qualityIndicators');
+    if (ref) ref.child('events/' + y + '/' + evId).remove()
+      .catch(e => console.warn('qi event Firebase remove failed:', e));
+  }
+}
+
+// ---- 운항편수 ----
+function qiLoadFlightsAll() { return SafeStorage.get(QI_FLIGHTS_KEY, {}); }
+function qiLoadFlights(year) {
+  const all = qiLoadFlightsAll();
+  return _qiNormalizeFlights(all[String(year)]);
+}
+function qiSaveFlights(year, data) {
+  const y = String(year);
+  const rec = _qiClean(_stampQi({ year: Number(year), dom: _qiPad12(data && data.dom), intl: _qiPad12(data && data.intl) }));
+  const all = qiLoadFlightsAll();
+  all[y] = rec;
+  SafeStorage.set(QI_FLIGHTS_KEY, all);
+  if (firebaseDb) {
+    const ref = dbRef('qualityIndicators');
+    if (ref) ref.child('flights/' + y).set(rec)
+      .then(() => console.log('qi flights saved:', y))
+      .catch(e => console.warn('qi flights Firebase save failed:', e));
+  }
+  return rec;
+}
+
+function _stampQi(o) {
+  const now = new Date().toISOString();
+  const who = (typeof _myDisplayName === 'function') ? _myDisplayName() : '';
+  if (!o.createdAt) { o.createdAt = now; o.createdBy = who; }
+  o.updatedAt = now;
+  o.updatedBy = who;
+  return o;
+}
+
+// ---- Firebase 명시 fetch (로그인 직후 1회) ----
+function qiLoadAllFromFirebase() {
+  if (!firebaseDb) return Promise.resolve({ master: 0, events: 0, flights: 0 });
+  const base = dbRef('qualityIndicators');
+  if (!base) return Promise.resolve({ master: 0, events: 0, flights: 0 });
+  return Promise.all([
+    base.child('master').once('value'),
+    base.child('events').once('value'),
+    base.child('flights').once('value'),
+  ]).then(([mSnap, eSnap, fSnap]) => {
+    const counts = { master: 0, events: 0, flights: 0 };
+    const mv = mSnap.val();
+    if (mv) {
+      const local = {};
+      for (const [id, v] of Object.entries(mv)) { const m = _qiNormalizeMaster(v); if (m) local[id] = m; }
+      SafeStorage.set(QI_MASTER_KEY, local);
+      counts.master = Object.keys(local).length;
+    }
+    const ev = eSnap.val();
+    if (ev) {
+      const local = {};
+      for (const [y, grp] of Object.entries(ev)) {
+        local[y] = {};
+        for (const [id, v] of Object.entries(grp || {})) { const e = _qiNormalizeEvent(v); if (e) { local[y][id] = e; counts.events++; } }
+      }
+      SafeStorage.set(QI_EVENTS_KEY, local);
+    }
+    const fv = fSnap.val();
+    if (fv) {
+      const local = {};
+      for (const [y, v] of Object.entries(fv)) { const f = _qiNormalizeFlights(v); if (f) local[y] = f; }
+      SafeStorage.set(QI_FLIGHTS_KEY, local);
+      counts.flights = Object.keys(local).length;
+    }
+    return counts;
+  }).catch(e => {
+    console.warn('qualityIndicators load from Firebase failed:', e);
+    return { master: 0, events: 0, flights: 0 };
+  });
+}
+
+// 최초 1회 기본 지표 시딩. 자동 실행 금지 — admin이 버튼으로 명시 호출하고, 마스터가 비어 있을 때만 동작.
+function qiSeedMaster() {
+  if (!canEditQiMaster()) { showToast('권한이 없습니다. (admin 이상 필요)', 'error'); return false; }
+  if (Object.keys(qiLoadMaster()).length > 0) { showToast('이미 등록된 지표가 있어 시딩하지 않습니다.', 'warning'); return false; }
+  if (!confirm('2026년 확정 지표 5개(합계 4.209 건/만편)를 등록합니다. 진행할까요?')) return false;
+  QI_SEED_2026.forEach((s, i) => {
+    qiSaveMaster({
+      id: makeQiId() + '_' + i,
+      name: s.name, definition: '',
+      depts: [], iosa: [], dataSource: [],
+      formula: QI_DEFAULT_FORMULA,
+      target: s.target, targetBasis: '3개년 평균',
+      alert: { mode: 'sigma', caution: null, warning: null, critical: null },
+      note: '',
+      group: '', category: '안전기획팀 KPI', unit: 'per10k',
+      direction: QI_DIRECTIONS.LOWER, monitoringOnly: false,
+      order: (i + 1) * 10, active: true,
+    });
+  });
+  showToast('기본 지표 ' + QI_SEED_2026.length + '개를 등록했습니다.', 'success');
+  return true;
+}
+
+// -----------------------------------------------------------------------------
+// 집계·경보 산식 (전부 순수 함수 — mock 단위검증 가능)
+// -----------------------------------------------------------------------------
+const QI_RATE_BASE = 10000;   // 건/만편
+const QI_SPAN = 3;            // 가중평균·표준편차 산정 기간(년)
+
+// 발생 월 — month 필드 우선, 없으면 occurredOn(YYYY-MM-DD)에서 뽑는다.
+function _qiMonthOf(ev) {
+  if (!ev) return null;
+  const m = _qiNum(ev.month);
+  if (m !== null && m >= 1 && m <= 12) return m;
+  const s = String(ev.occurredOn || '');
+  const mm = s.match(/^\d{4}-(\d{2})/);
+  if (mm) { const n = Number(mm[1]); if (n >= 1 && n <= 12) return n; }
+  return null;
+}
+
+// 연간 운항편수. 미입력(null) 월은 제외하고 합산하므로 진행 중인 해도 그대로 쓸 수 있다.
+// avg = (국내 + 국제) ÷ 2  — KPI 산식의 "국내·국제 운항편수 평균"
+function qiFlightsTotal(year) {
+  const f = qiLoadFlights(year);
+  if (!f) return null;
+  const sum = a => a.reduce((s, v) => s + (v === null ? 0 : v), 0);
+  const dom = sum(f.dom), intl = sum(f.intl);
+  const avg = (dom + intl) / 2;
+  if (!avg) return null;   // 분모 0 방지
+  return { dom: dom, intl: intl, avg: avg };
+}
+function qiFlightsMonth(year, m) {
+  const f = qiLoadFlights(year);
+  if (!f || m < 1 || m > 12) return null;
+  const d = f.dom[m - 1], i = f.intl[m - 1];
+  if (d === null && i === null) return null;   // 미입력 월
+  const avg = ((d || 0) + (i || 0)) / 2;
+  if (!avg) return null;
+  return { dom: d, intl: i, avg: avg };
+}
+function qiRate(count, flightsAvg) {
+  if (flightsAvg === null || flightsAvg === undefined || !flightsAvg) return null;
+  if (count === null || count === undefined) return null;
+  return count / flightsAvg * QI_RATE_BASE;
+}
+
+// ★ 모든 화면이 소비하는 단일 진입점. 발생 소스가 늘어도 여기만 바뀐다.
+// -> { [indId]: { total, byMonth:[12], items:[] } }
+function qiCounts(year) {
+  const out = {};
+  qiLoadEvents(year).forEach(ev => {
+    const id = ev.indId;
+    if (!id) return;
+    if (!out[id]) out[id] = { total: 0, byMonth: new Array(12).fill(0), items: [] };
+    const c = (ev.count === null || ev.count === undefined) ? 1 : ev.count;
+    out[id].total += c;
+    const m = _qiMonthOf(ev);
+    if (m) out[id].byMonth[m - 1] += c;
+    out[id].items.push(ev);
+  });
+  return out;
+}
+function _qiEmptyCount() { return { total: 0, byMonth: new Array(12).fill(0), items: [] }; }
+
+// 표 렌더는 지표 수만큼 반복되므로 연도별 집계를 한 번만 만들어 재사용한다.
+// opt.now — 경보 판정 범위(경과 월) 계산 기준. 테스트에서 주입할 수 있게 인자로 뺐다.
+function qiBuildContext(year, span, opt) {
+  const o = opt || {};
+  const sp = span || QI_SPAN;
+  const now = o.now || new Date();
+  const curY = now.getFullYear(), curM = now.getMonth() + 1;
+  const years = [];
+  for (let i = sp; i >= 1; i--) years.push(year - i);
+  years.push(year);
+  const ctx = { year: year, span: sp, years: years, counts: {}, flights: {}, flightsMonth: {},
+                // 미도래 월까지 판정하면 발생률 0이 섞인다. higher 방향 지표에서는 그 0이
+                // 그대로 '목표 미달'로 잡혀 항상 심각이 되므로 경과 월까지만 본다.
+                upToMonth: (year > curY) ? 0 : (year === curY ? curM : 12) };
+  years.forEach(y => {
+    ctx.counts[y] = qiCounts(y);
+    ctx.flights[y] = qiFlightsTotal(y);
+    ctx.flightsMonth[y] = [];
+    for (let m = 1; m <= 12; m++) ctx.flightsMonth[y].push(qiFlightsMonth(y, m));
+  });
+  return ctx;
+}
+function _qiCtxCount(ctx, indId, y) { return (ctx.counts[y] && ctx.counts[y][indId]) || _qiEmptyCount(); }
+
+// 연도별 시계열 -> [{year, count, flights, rate}]
+function qiSeries(indId, years, ctx) {
+  return years.map(y => {
+    const c = _qiCtxCount(ctx, indId, y);
+    const f = ctx.flights[y];
+    return { year: y, count: c.total, flights: f ? f.avg : null, rate: qiRate(c.total, f ? f.avg : null) };
+  });
+}
+
+// 3년 가중평균 — 연도별 발생률의 단순평균이 아니라 편수로 가중한 pooled rate.
+// (ESMS 정의서 ⑨항 "직전 3년 발생률 가중평균"이 이 뜻)
+// 당해 연도는 제외한다.
+function qiWeightedAvg(indId, endYear, ctx, span) {
+  const sp = span || (ctx && ctx.span) || QI_SPAN;
+  const years = [];
+  for (let i = sp; i >= 1; i--) years.push(endYear - i);
+  let totalCount = 0, totalFlights = 0, haveAll = true;
+  years.forEach(y => {
+    totalCount += _qiCtxCount(ctx, indId, y).total;
+    const f = ctx.flights[y];
+    if (f) totalFlights += f.avg; else haveAll = false;
+  });
+  return {
+    years: years, totalCount: totalCount, totalFlights: totalFlights || null,
+    avgCount: totalCount / sp,
+    weightedRate: totalFlights ? (totalCount / totalFlights * QI_RATE_BASE) : null,
+    complete: haveAll,
+  };
+}
+
+// 표준편차 계산 계열 — 직전 span년의 월별 발생률(기본 36개월). 편수 미입력 월은 null.
+function qiSigmaSeries(indId, endYear, ctx, span) {
+  const sp = span || (ctx && ctx.span) || QI_SPAN;
+  const out = [];
+  for (let i = sp; i >= 1; i--) {
+    const y = endYear - i;
+    const c = _qiCtxCount(ctx, indId, y);
+    for (let m = 1; m <= 12; m++) {
+      const fm = ctx.flightsMonth[y] ? ctx.flightsMonth[y][m - 1] : null;
+      out.push(fm ? qiRate(c.byMonth[m - 1], fm.avg) : null);
+    }
+  }
+  return out;
+}
+// 모표준편차(/n). null 원소는 제외하며 유효 표본이 2개 미만이면 null.
+function qiStdev(values) {
+  const v = (values || []).filter(x => x !== null && x !== undefined && isFinite(x));
+  if (v.length < 2) return null;
+  const mean = v.reduce((s, x) => s + x, 0) / v.length;
+  const varc = v.reduce((s, x) => s + (x - mean) * (x - mean), 0) / v.length;
+  return Math.sqrt(varc);
+}
+
+// 경보치 = 가중평균 ± nσ. direction이 higher면 아래쪽(미달)이 경고 방향이다.
+// alert.mode==='manual'이면 σ를 무시하고 마스터 입력값을 그대로 쓴다(표본 없는 신규 지표 대비).
+function qiAlertThresholds(ind, year, ctx) {
+  const indId = ind.id;
+  const wa = qiWeightedAvg(indId, year, ctx);
+  const sigma = qiStdev(qiSigmaSeries(indId, year, ctx));
+  const higher = (ind.direction === QI_DIRECTIONS.HIGHER);
+  if (ind.alert && ind.alert.mode === 'manual') {
+    const has = (ind.alert.caution !== null || ind.alert.warning !== null || ind.alert.critical !== null);
+    return { mu: wa.weightedRate, sigma: sigma, mode: 'manual',
+             caution: ind.alert.caution, warning: ind.alert.warning, critical: ind.alert.critical,
+             complete: has };
+  }
+  const mu = wa.weightedRate;
+  if (mu === null || sigma === null) {
+    return { mu: mu, sigma: sigma, mode: 'sigma', caution: null, warning: null, critical: null, complete: false };
+  }
+  const at = n => higher ? (mu - n * sigma) : (mu + n * sigma);
+  return { mu: mu, sigma: sigma, mode: 'sigma', caution: at(1), warning: at(2), critical: at(3), complete: true };
+}
+
+// 연속 초과 판정. null(미도래 월·편수 미입력)은 연속 카운터를 리셋한다(보수적 판정).
+function _qiMaxRun(series, threshold, higher) {
+  if (threshold === null || threshold === undefined) return 0;
+  let run = 0, max = 0;
+  series.forEach(v => {
+    if (v === null || v === undefined || !isFinite(v)) { run = 0; return; }
+    const over = higher ? (v < threshold) : (v > threshold);
+    if (over) { run++; if (run > max) max = run; } else { run = 0; }
+  });
+  return max;
+}
+
+// ESMS ⑩항 그대로: 심각 = 3σ 1회 / 경계 = 2σ 2연속 / 주의 = 1σ 3연속 (우선순위 심각 > 경계 > 주의)
+function qiEvaluateAlert(ind, year, ctx) {
+  const th = qiAlertThresholds(ind, year, ctx);
+  const higher = (ind.direction === QI_DIRECTIONS.HIGHER);
+  if (!th.complete) return { level: 'none', reason: '데이터 축적 중', thresholds: th, complete: false };
+  const c = _qiCtxCount(ctx, ind.id, year);
+  const last = (ctx.upToMonth === undefined || ctx.upToMonth === null) ? 12 : ctx.upToMonth;
+  const series = [];
+  for (let m = 1; m <= last; m++) {
+    const fm = ctx.flightsMonth[year] ? ctx.flightsMonth[year][m - 1] : null;
+    series.push(fm ? qiRate(c.byMonth[m - 1], fm.avg) : null);
+  }
+  if (_qiMaxRun(series, th.critical, higher) >= 1) return { level: 'critical', reason: '3σ 초과', thresholds: th, complete: true };
+  if (_qiMaxRun(series, th.warning, higher) >= 2)  return { level: 'warning',  reason: '2σ 2개월 연속 초과', thresholds: th, complete: true };
+  if (_qiMaxRun(series, th.caution, higher) >= 3)  return { level: 'caution',  reason: '1σ 3개월 연속 초과', thresholds: th, complete: true };
+  return { level: 'none', reason: '정상', thresholds: th, complete: true };
+}
+
+// 목표 대비 — 감축률은 3년 가중평균 대비 목표치의 감축 폭
+function qiTargetInfo(ind, year, ctx) {
+  const wa = qiWeightedAvg(ind.id, year, ctx);
+  const base = wa.weightedRate;
+  const t = _qiNum(ind.target);
+  let reduction = null;
+  if (t !== null && base !== null && base !== 0) reduction = (base - t) / base * 100;
+  return { target: t, base: base, reductionRate: reduction };
+}
+
+// 목표 달성 여부 — direction이 판정을 뒤집는다.
+function qiAchieved(ind, year, ctx) {
+  const c = _qiCtxCount(ctx, ind.id, year);
+  const f = ctx.flights[year];
+  const rate = qiRate(c.total, f ? f.avg : null);
+  const t = _qiNum(ind.target);
+  if (rate === null || t === null) return null;
+  return (ind.direction === QI_DIRECTIONS.HIGHER) ? (rate >= t) : (rate <= t);
+}
+
+// 표 한 행에 필요한 값 일습
+function qiRowModel(ind, year, ctx) {
+  const prevYears = ctx.years.filter(y => y < year);
+  const y3 = qiSeries(ind.id, prevYears, ctx);
+  const cur = _qiCtxCount(ctx, ind.id, year);
+  const curF = ctx.flights[year];
+  const wa = qiWeightedAvg(ind.id, year, ctx);
+  const alert = qiEvaluateAlert(ind, year, ctx);
+  const ti = qiTargetInfo(ind, year, ctx);
+  return {
+    ind: ind, y3: y3,
+    sum3: y3.reduce((s, r) => s + r.count, 0),
+    cur: { count: cur.total, rate: qiRate(cur.total, curF ? curF.avg : null), byMonth: cur.byMonth },
+    wavg: wa, target: ti, sigma: alert.thresholds.sigma,
+    thresholds: alert.thresholds, alert: alert,
+    achieved: qiAchieved(ind, year, ctx),
+  };
+}
+
+// 합계 — monitoringOnly 지표는 제외(ESMS 하단 합계행 규칙).
+// 부동소수 오차를 피하려고 원값을 합산한 뒤에만 반올림한다(각 값을 반올림해 더하면 4.208999… 가 나옴).
+function qiSummary(year, ctx, opt) {
+  const o = opt || {};
+  const list = qiListMaster({ activeOnly: true });
+  const rows = list.map(ind => qiRowModel(ind, year, ctx));
+  const counted = (o.excludeMonitoring === false) ? rows : rows.filter(r => !r.ind.monitoringOnly);
+  let rateSum = null, targetSum = null;
+  counted.forEach(r => {
+    if (r.cur.rate !== null) rateSum = (rateSum === null ? 0 : rateSum) + r.cur.rate;
+    if (r.target.target !== null) targetSum = (targetSum === null ? 0 : targetSum) + r.target.target;
+  });
+  return {
+    rows: rows, counted: counted,
+    indicatorCount: list.length,
+    totalCount: counted.reduce((s, r) => s + r.cur.count, 0),
+    totalRate: rateSum, totalTarget: targetSum,
+    alertCount: counted.filter(r => r.alert.level !== 'none').length,
+  };
+}
+
+// 표시 헬퍼 — 값 없으면 '—'
+function _qiFmt(v, digits) {
+  if (v === null || v === undefined || !isFinite(v)) return '—';
+  return Number(v).toFixed(digits === undefined ? 3 : digits);
+}
+function _qiFmtInt(v) {
+  if (v === null || v === undefined || !isFinite(v)) return '—';
+  return Number(v).toLocaleString();
+}
+
+// -----------------------------------------------------------------------------
+// 렌더
+// -----------------------------------------------------------------------------
+const _qiState = { sub: 'status', year: null, category: '', group: '', editingId: null, evEditingId: null };
+
+function _qiIsMobile() { return window.matchMedia('(max-width:768px)').matches; }
+function _qiCurYear() { return _qiState.year || new Date().getFullYear(); }
+
+function qiPopulateYearSelect() {
+  const sel = document.getElementById('qiYear');
+  if (!sel) return;
+  const cur = new Date().getFullYear();
+  const set = new Set();
+  for (let y = cur + 1; y >= cur - 3; y--) set.add(y);
+  Object.keys(qiLoadEventsAll()).forEach(y => set.add(Number(y)));
+  Object.keys(qiLoadFlightsAll()).forEach(y => set.add(Number(y)));
+  const years = Array.from(set).filter(y => isFinite(y)).sort((a, b) => b - a);
+  if (!_qiState.year) _qiState.year = cur;
+  sel.innerHTML = years.map(y => '<option value="' + y + '"' + (y === _qiState.year ? ' selected' : '') + '>' + y + '년</option>').join('');
+}
+
+function _qiPopulateFilter(id, values, current, allLabel) {
+  const sel = document.getElementById(id);
+  if (!sel) return;
+  const opts = ['<option value="">' + allLabel + '</option>']
+    .concat(values.map(v => '<option value="' + _esc(v) + '"' + (v === current ? ' selected' : '') + '>' + _esc(v) + '</option>'));
+  sel.innerHTML = opts.join('');
+}
+
+function qiOnFilterChange() {
+  const y = document.getElementById('qiYear');
+  const c = document.getElementById('qiCategory');
+  const g = document.getElementById('qiGroup');
+  if (y) _qiState.year = Number(y.value) || new Date().getFullYear();
+  if (c) _qiState.category = c.value || '';
+  if (g) _qiState.group = g.value || '';
+  renderQiTab();
+}
+
+function qiSwitchSubTab(mode) {
+  if (mode === 'config' && !canEditQiMaster()) { showToast('권한이 없습니다. (admin 이상 필요)', 'error'); return; }
+  _qiState.sub = mode;
+  [['status', 'qiSubStatus', 'qiStatusContent'],
+   ['events', 'qiSubEvents', 'qiEventsContent'],
+   ['config', 'qiSubConfig', 'qiConfigContent']].forEach(([m, btnId, contentId]) => {
+    const btn = document.getElementById(btnId);
+    if (btn) btn.className = (m === mode) ? 'sub-tab sub-tab-active' : 'sub-tab sub-tab-inactive';
+    const el = document.getElementById(contentId);
+    if (el) el.classList.toggle('hidden', m !== mode);
+  });
+  renderQiTab();
+}
+
+// 탭 진입점
+function renderQiTab() {
+  const wrap = document.getElementById('tab8');
+  if (!wrap) return;
+  qiPopulateYearSelect();
+  const all = qiListMaster({ activeOnly: false });
+  _qiPopulateFilter('qiCategory', Array.from(new Set(all.map(m => m.category).filter(Boolean))), _qiState.category, '전체');
+  _qiPopulateFilter('qiGroup', Array.from(new Set(all.map(m => m.group).filter(Boolean))), _qiState.group, '전체');
+
+  const cfgBtn = document.getElementById('qiSubConfig');
+  if (cfgBtn) cfgBtn.style.display = canEditQiMaster() ? '' : 'none';
+  if (_qiState.sub === 'config' && !canEditQiMaster()) _qiState.sub = 'status';
+
+  try {
+    if (_qiState.sub === 'status') qiRenderStatus();
+    else if (_qiState.sub === 'events') qiRenderEvents();
+    else if (_qiState.sub === 'config') qiRenderConfig();
+  } catch (e) {
+    console.warn('renderQiTab failed:', e);
+    const el = document.getElementById('qi' + (_qiState.sub === 'status' ? 'Status' : _qiState.sub === 'events' ? 'Events' : 'Config') + 'Content');
+    if (el) el.innerHTML = '<div class="apple-card p-6" style="color:#D20015;">화면을 그리는 중 오류가 발생했습니다: ' + _esc(e.message) + '</div>';
+  }
+}
+
+function _qiFilteredMaster() {
+  return qiListMaster({ activeOnly: true, category: _qiState.category, group: _qiState.group });
+}
+
+function _qiAlertBadge(level, complete) {
+  const meta = QI_ALERT_META[level] || QI_ALERT_META.none;
+  const label = complete === false ? '축적 중' : meta.label;
+  const bg = complete === false ? 'rgba(158,162,161,0.18)' : meta.color;
+  const fg = complete === false ? '#6E7273' : (meta.text || '#fff');
+  return '<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:' + bg + ';color:' + fg + ';">' + label + '</span>';
+}
+
+// ---- 현황 ----
+function qiRenderStatus() {
+  const box = document.getElementById('qiStatusContent');
+  if (!box) return;
+  const year = _qiCurYear();
+  const list = _qiFilteredMaster();
+
+  if (!list.length) {
+    box.innerHTML = '<div class="apple-card p-8 text-center">'
+      + '<p style="font-size:15px;color:#6E7273;margin-bottom:6px;">등록된 지표가 없습니다.</p>'
+      + '<p style="font-size:13px;color:#9EA2A1;">' + (canEditQiMaster()
+          ? '설정 탭에서 기본 지표를 불러오거나 직접 추가하세요.'
+          : '관리자가 지표를 등록하면 여기에 표시됩니다.') + '</p></div>';
+    return;
+  }
+
+  const ctx = qiBuildContext(year);
+  const rows = list.map(ind => qiRowModel(ind, year, ctx));
+  const counted = rows.filter(r => !r.ind.monitoringOnly);
+  let rateSum = null, targetSum = null;
+  counted.forEach(r => {
+    if (r.cur.rate !== null) rateSum = (rateSum === null ? 0 : rateSum) + r.cur.rate;
+    if (r.target.target !== null) targetSum = (targetSum === null ? 0 : targetSum) + r.target.target;
+  });
+  const totalCount = counted.reduce((s, r) => s + r.cur.count, 0);
+  const alertCount = counted.filter(r => r.alert.level !== 'none').length;
+  const fl = ctx.flights[year];
+
+  // KPI 카드
+  const card = (label, value, sub, color) =>
+    '<div class="apple-card p-4">'
+    + '<div class="apple-label mb-1">' + _esc(label) + '</div>'
+    + '<div style="font-size:26px;font-weight:600;color:' + (color || '#303A3C') + ';letter-spacing:-0.5px;">' + value + '</div>'
+    + (sub ? '<div style="font-size:12px;color:#9EA2A1;margin-top:2px;">' + sub + '</div>' : '')
+    + '</div>';
+
+  let targetCmp = '';
+  if (rateSum !== null && targetSum !== null) {
+    const ok = rateSum <= targetSum;
+    targetCmp = '<span style="color:' + (ok ? '#39B54A' : '#D20015') + ';">목표 ' + _qiFmt(targetSum) + ' 대비 ' + (ok ? '이내' : '초과') + '</span>';
+  } else if (targetSum !== null) {
+    targetCmp = '목표 합계 ' + _qiFmt(targetSum);
+  }
+
+  let html = '<div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">'
+    + card('관리 지표', list.length + '개', counted.length !== list.length ? ('합계 대상 ' + counted.length + '개') : '')
+    + card('당해 발생건수', _qiFmtInt(totalCount) + '건', year + '년 누적')
+    + card('당해 발생률', _qiFmt(rateSum), targetCmp || '건/만편', '#D20015')
+    + card('경보 지표', alertCount + '개', alertCount ? '확인 필요' : '정상', alertCount ? '#F7941E' : '#39B54A')
+    + '</div>';
+
+  if (!fl) {
+    html += '<div class="apple-card p-4 mb-4" style="border-left:3px solid #F7941E;">'
+      + '<div style="font-size:13px;color:#6E7273;">' + year + '년 운항편수가 입력되지 않아 발생률을 산출할 수 없습니다. '
+      + (canEditQiMaster() ? '설정 탭에서 월별 편수를 입력하세요.' : '관리자에게 요청하세요.') + '</div></div>';
+  }
+
+  html += _qiIsMobile() ? _qiStatusCards(rows, year) : _qiStatusTable(rows, year, ctx);
+  box.innerHTML = html;
+}
+
+// 모바일: 17열 표는 과하므로 카드로 (지표명·당해건수·발생률·상태)
+function _qiStatusCards(rows, year) {
+  return '<div class="space-y-2">' + rows.map(r =>
+    '<div class="apple-card p-4" onclick="qiOpenDefModal(\'' + _esc(r.ind.id) + '\')" style="cursor:pointer;">'
+    + '<div class="flex items-start justify-between gap-2 mb-2">'
+    + '<div style="font-size:15px;font-weight:600;color:#303A3C;">' + _esc(r.ind.name) + '</div>'
+    + _qiAlertBadge(r.alert.level, r.alert.complete)
+    + '</div>'
+    + '<div class="flex gap-4" style="font-size:13px;color:#6E7273;">'
+    + '<span>발생 <b style="color:#D20015;">' + _qiFmtInt(r.cur.count) + '</b>건</span>'
+    + '<span>발생률 <b>' + _qiFmt(r.cur.rate) + '</b></span>'
+    + '<span>목표 ' + _qiFmt(r.target.target) + '</span>'
+    + '</div></div>').join('') + '</div>';
+}
+
+// 데스크톱: ESMS 목록 표 (그룹 헤더 + 소계 + 합계)
+function _qiStatusTable(rows, year, ctx) {
+  const prevYears = ctx.years.filter(y => y < year);
+  const th = (t, w) => '<th style="padding:8px 6px;font-size:11px;font-weight:600;color:#6E7273;white-space:nowrap;' + (w ? 'width:' + w + ';' : '') + '">' + t + '</th>';
+  const td = (t, extra) => '<td style="padding:8px 6px;font-size:13px;text-align:center;' + (extra || '') + '">' + t + '</td>';
+
+  let head = '<tr style="border-bottom:1px solid rgba(192,206,209,0.5);">'
+    + th('지표명') + th('지표구분')
+    + prevYears.map(y => th(String(y).slice(2) + '년')).join('')
+    + th('최근3년') + th('당해 건수') + th('당해 발생률')
+    + th('3년 평균건수') + th('3년 가중평균') + th('목표치') + th('감축률') + th('σ')
+    + th('주의') + th('경계') + th('심각') + th('상태')
+    + '</tr>';
+
+  // 그룹별 묶음 — 그룹이 하나도 없으면 단일 목록으로 그린다
+  const groups = [];
+  rows.forEach(r => {
+    const g = r.ind.group || '';
+    let e = groups.find(x => x.name === g);
+    if (!e) { e = { name: g, rows: [] }; groups.push(e); }
+    e.rows.push(r);
+  });
+
+  const rowHtml = r => {
+    const t = r.target;
+    return '<tr style="border-bottom:1px solid rgba(192,206,209,0.2);">'
+      + '<td style="padding:8px 6px;font-size:13px;"><a href="javascript:void(0)" onclick="qiOpenDefModal(\'' + _esc(r.ind.id) + '\')" style="color:#D20015;text-decoration:none;font-weight:500;">' + _esc(r.ind.name) + '</a>'
+      + (r.ind.monitoringOnly ? ' <span style="font-size:11px;color:#9EA2A1;">(모니터링)</span>' : '') + '</td>'
+      + td(_esc(r.ind.category || '—'), 'color:#6E7273;font-size:12px;')
+      + r.y3.map(s => td(_qiFmtInt(s.count))).join('')
+      + td('<b>' + _qiFmtInt(r.sum3) + '</b>')
+      + td('<b style="color:#D20015;">' + _qiFmtInt(r.cur.count) + '</b>')
+      + td('<b style="color:#D20015;">' + _qiFmt(r.cur.rate) + '</b>')
+      + td(_qiFmt(r.wavg.avgCount, 1), 'color:#3B82F6;')
+      + td(_qiFmt(r.wavg.weightedRate), 'color:#3B82F6;')
+      + td(_qiFmt(t.target))
+      + td(t.reductionRate === null ? '—' : _qiFmt(t.reductionRate, 1) + '%')
+      + td(_qiFmt(r.sigma))
+      + td(_qiFmt(r.thresholds.caution))
+      + td(_qiFmt(r.thresholds.warning))
+      + td(_qiFmt(r.thresholds.critical))
+      + td(_qiAlertBadge(r.alert.level, r.alert.complete))
+      + '</tr>';
+  };
+
+  const subtotal = (label, list) => {
+    if (!list.length) return '';
+    let rs = null, ts = null;
+    list.forEach(r => {
+      if (r.cur.rate !== null) rs = (rs === null ? 0 : rs) + r.cur.rate;
+      if (r.target.target !== null) ts = (ts === null ? 0 : ts) + r.target.target;
+    });
+    const span = 2 + prevYears.length;
+    return '<tr style="background:rgba(158,162,161,0.08);border-bottom:1px solid rgba(192,206,209,0.35);">'
+      + '<td colspan="' + span + '" style="padding:8px 6px;font-size:12px;font-weight:600;color:#6E7273;text-align:right;">' + _esc(label) + '</td>'
+      + td('<b>' + _qiFmtInt(list.reduce((s, r) => s + r.sum3, 0)) + '</b>')
+      + td('<b>' + _qiFmtInt(list.reduce((s, r) => s + r.cur.count, 0)) + '</b>')
+      + td('<b>' + _qiFmt(rs) + '</b>')
+      + td('') + td('') + td('<b>' + _qiFmt(ts) + '</b>') + td('') + td('') + td('') + td('') + td('') + td('')
+      + '</tr>';
+  };
+
+  let body = '';
+  groups.forEach(g => {
+    if (g.name) {
+      body += '<tr><td colspan="' + (15 + prevYears.length) + '" style="padding:10px 6px 4px;"><div class="cat-header" style="font-size:13px;font-weight:600;color:#303A3C;">' + _esc(g.name) + '</div></td></tr>';
+    }
+    body += g.rows.map(rowHtml).join('');
+    if (groups.length > 1) body += subtotal('소계', g.rows);
+  });
+  body += subtotal('합계 (모니터링 지표 제외)', rows.filter(r => !r.ind.monitoringOnly));
+
+  return '<div class="apple-card p-4" style="overflow-x:auto;">'
+    + '<table class="apple-table" style="width:100%;min-width:1100px;border-collapse:collapse;">'
+    + '<thead>' + head + '</thead><tbody>' + body + '</tbody></table>'
+    + '<div style="font-size:11px;color:#9EA2A1;margin-top:10px;line-height:1.6;">'
+    + '· 발생률 단위는 건/만편 (발생건수 ÷ ((국내편수 + 국제편수) ÷ 2) × 10,000)<br>'
+    + '· 3년 가중평균은 연도별 발생률의 단순평균이 아니라 편수로 가중한 값입니다<br>'
+    + '· 경보치는 가중평균 ± nσ. 주의=1σ 3개월 연속 · 경계=2σ 2개월 연속 · 심각=3σ 초과. 편수 미입력 월은 연속 판정에서 끊깁니다<br>'
+    + '· 3개년 데이터가 쌓이기 전에는 가중평균·σ·경보치가 산출되지 않아 &ldquo;—&rdquo;로 표시됩니다'
+    + '</div></div>';
+}
+
+// ---- 발생 기록 ----
+function qiRenderEvents() {
+  const box = document.getElementById('qiEventsContent');
+  if (!box) return;
+  const year = _qiCurYear();
+  const master = qiListMaster({ activeOnly: false });
+  const masterById = {};
+  master.forEach(m => { masterById[m.id] = m; });
+  const events = qiLoadEvents(year).sort((a, b) =>
+    String(b.occurredOn || '').localeCompare(String(a.occurredOn || '')) || (b.month || 0) - (a.month || 0));
+
+  const canEdit = canEditQiEvent();
+  let html = '';
+
+  if (canEdit) {
+    if (!master.filter(m => m.active).length) {
+      html += '<div class="apple-card p-4 mb-4" style="border-left:3px solid #F7941E;"><div style="font-size:13px;color:#6E7273;">등록된 지표가 없어 발생 건을 추가할 수 없습니다. 먼저 지표를 등록하세요.</div></div>';
+    } else {
+      const editing = _qiState.evEditingId ? events.find(e => e.id === _qiState.evEditingId) : null;
+      html += _qiEventForm(master.filter(m => m.active), editing);
+    }
+  }
+
+  if (!events.length) {
+    html += '<div class="apple-card p-8 text-center"><p style="font-size:14px;color:#9EA2A1;">' + year + '년에 등록된 발생 기록이 없습니다.</p></div>';
+    box.innerHTML = html;
+    return;
+  }
+
+  html += '<div class="apple-card p-4" style="overflow-x:auto;">'
+    + '<table class="apple-table" style="width:100%;min-width:760px;border-collapse:collapse;"><thead>'
+    + '<tr style="border-bottom:1px solid rgba(192,206,209,0.5);">'
+    + ['발생일', '지표', '건수', '부문', '출처', '건명', '관리번호', canEdit ? '' : null].filter(x => x !== null)
+        .map(t => '<th style="padding:8px 6px;font-size:11px;font-weight:600;color:#6E7273;white-space:nowrap;">' + t + '</th>').join('')
+    + '</tr></thead><tbody>'
+    + events.map(ev => {
+        const m = masterById[ev.indId];
+        return '<tr style="border-bottom:1px solid rgba(192,206,209,0.2);">'
+          + '<td style="padding:8px 6px;font-size:13px;white-space:nowrap;">' + _esc(ev.occurredOn || (ev.month ? (year + '-' + String(ev.month).padStart(2, '0')) : '—')) + '</td>'
+          + '<td style="padding:8px 6px;font-size:13px;">' + (m ? _esc(m.name) : '<span style="color:#D20015;">삭제된 지표</span>') + '</td>'
+          + '<td style="padding:8px 6px;font-size:13px;text-align:center;">' + _qiFmtInt(ev.count) + '</td>'
+          + '<td style="padding:8px 6px;font-size:13px;">' + _esc(ev.dept || '—') + '</td>'
+          + '<td style="padding:8px 6px;font-size:12px;color:#6E7273;">' + _esc(ev.source || '—') + '</td>'
+          + '<td style="padding:8px 6px;font-size:13px;">' + _esc(ev.title || '—') + '</td>'
+          + '<td style="padding:8px 6px;font-size:12px;color:#6E7273;">' + _esc(ev.refNo || '—') + '</td>'
+          + (canEdit ? ('<td style="padding:8px 6px;white-space:nowrap;text-align:right;">'
+              + '<button onclick="qiEditEvent(\'' + _esc(ev.id) + '\')" class="touch-text-btn" style="background:none;border:none;color:#6E7273;font-size:12px;cursor:pointer;padding:6px 8px;">수정</button>'
+              + '<button onclick="qiDeleteEventUI(\'' + _esc(ev.id) + '\')" class="touch-text-btn" style="background:none;border:none;color:#D20015;font-size:12px;cursor:pointer;padding:6px 8px;">삭제</button>'
+              + '</td>') : '')
+          + '</tr>';
+      }).join('')
+    + '</tbody></table></div>';
+
+  box.innerHTML = html;
+}
+
+function _qiEventForm(activeMaster, editing) {
+  const e = editing || {};
+  const opt = (v, cur) => '<option value="' + _esc(v) + '"' + (v === cur ? ' selected' : '') + '>' + _esc(v) + '</option>';
+  return '<div class="apple-card p-4 mb-4">'
+    + '<div style="font-size:14px;font-weight:600;color:#303A3C;margin-bottom:12px;">' + (editing ? '발생 기록 수정' : '발생 기록 추가') + '</div>'
+    + '<div class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3">'
+    + '<div><label class="apple-label block mb-1">발생일</label><input type="date" id="qiEvDate" class="apple-input" style="width:100%;" value="' + _esc(e.occurredOn || '') + '"></div>'
+    + '<div><label class="apple-label block mb-1">지표</label><select id="qiEvInd" class="apple-input" style="width:100%;">'
+    + activeMaster.map(m => '<option value="' + _esc(m.id) + '"' + (m.id === e.indId ? ' selected' : '') + '>' + _esc(m.name) + '</option>').join('')
+    + '</select></div>'
+    + '<div><label class="apple-label block mb-1">건수</label><input type="number" id="qiEvCount" class="apple-input" style="width:100%;" min="1" value="' + (e.count || 1) + '"></div>'
+    + '<div><label class="apple-label block mb-1">부문</label><select id="qiEvDept" class="apple-input" style="width:100%;"><option value="">선택 안 함</option>'
+    + QI_DEPTS.map(d => opt(d, e.dept)).join('') + '</select></div>'
+    + '</div>'
+    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">'
+    + '<div><label class="apple-label block mb-1">출처</label><select id="qiEvSource" class="apple-input" style="width:100%;"><option value="">선택 안 함</option>'
+    + QI_SOURCES.map(d => opt(d, e.source)).join('') + '</select></div>'
+    + '<div><label class="apple-label block mb-1">건명</label><input type="text" id="qiEvTitle" class="apple-input" style="width:100%;" placeholder="지적사항 요약" value="' + _esc(e.title || '') + '"></div>'
+    + '<div><label class="apple-label block mb-1">관리번호</label><input type="text" id="qiEvRef" class="apple-input" style="width:100%;" placeholder="예: OPE-104-23-008" value="' + _esc(e.refNo || '') + '"></div>'
+    + '</div>'
+    + '<div class="mb-3"><label class="apple-label block mb-1">비고</label><input type="text" id="qiEvNote" class="apple-input" style="width:100%;" value="' + _esc(e.note || '') + '"></div>'
+    + '<div class="flex gap-2 justify-end">'
+    + (editing ? '<button class="pill-btn pill-btn-outline" onclick="qiCancelEventEdit()">취소</button>' : '')
+    + '<button class="pill-btn pill-btn-primary" onclick="qiAddEvent()">' + (editing ? '수정 저장' : '추가') + '</button>'
+    + '</div></div>';
+}
+
+function qiEditEvent(evId) {
+  if (!canEditQiEvent()) { showToast('권한이 없습니다. (auditor 이상 필요)', 'error'); return; }
+  _qiState.evEditingId = evId;
+  qiRenderEvents();
+}
+function qiCancelEventEdit() { _qiState.evEditingId = null; qiRenderEvents(); }
+
+function qiAddEvent() {
+  if (!canEditQiEvent()) { showToast('권한이 없습니다. (auditor 이상 필요)', 'error'); return; }
+  const date = (document.getElementById('qiEvDate') || {}).value || '';
+  const indId = (document.getElementById('qiEvInd') || {}).value || '';
+  const count = _qiNum((document.getElementById('qiEvCount') || {}).value);
+  if (!indId) { showToast('지표를 선택하세요.', 'error'); return; }
+  if (!date) { showToast('발생일을 입력하세요.', 'error'); const el = document.getElementById('qiEvDate'); if (el) el.focus(); return; }
+  if (count === null || count < 1) { showToast('건수는 1 이상이어야 합니다.', 'error'); return; }
+  const year = Number(String(date).slice(0, 4));
+  if (!year) { showToast('발생일 형식이 올바르지 않습니다.', 'error'); return; }
+
+  const editing = _qiState.evEditingId ? qiLoadEvents(_qiCurYear()).find(e => e.id === _qiState.evEditingId) : null;
+  // 연도가 바뀌면 옛 연도 그룹에서 지운 뒤 새 연도에 넣는다 (events가 연도별로 나뉘어 있음)
+  if (editing && Number(editing.year) !== year) qiDeleteEvent(editing.year, editing.id);
+
+  const ev = Object.assign({}, editing || {}, {
+    id: (editing && editing.id) || makeQiEventId(),
+    year: year, indId: indId, occurredOn: date,
+    month: Number(String(date).slice(5, 7)) || null,
+    count: count,
+    dept: (document.getElementById('qiEvDept') || {}).value || '',
+    source: (document.getElementById('qiEvSource') || {}).value || '',
+    title: (document.getElementById('qiEvTitle') || {}).value || '',
+    refNo: (document.getElementById('qiEvRef') || {}).value || '',
+    note: (document.getElementById('qiEvNote') || {}).value || '',
+  });
+  qiSaveEvent(ev);
+  _qiState.evEditingId = null;
+  if (Number(_qiState.year) !== year) _qiState.year = year;   // 방금 넣은 건이 보이도록 연도를 맞춘다
+  showToast(editing ? '발생 기록을 수정했습니다.' : '발생 기록을 추가했습니다.', 'success');
+  renderQiTab();
+}
+
+function qiDeleteEventUI(evId) {
+  if (!canEditQiEvent()) { showToast('권한이 없습니다. (auditor 이상 필요)', 'error'); return; }
+  if (!confirm('이 발생 기록을 삭제할까요?')) return;
+  qiDeleteEvent(_qiCurYear(), evId);
+  if (_qiState.evEditingId === evId) _qiState.evEditingId = null;
+  showToast('삭제했습니다.', 'success');
+  renderQiTab();
+}
+
+// ---- 설정 (admin) ----
+function qiRenderConfig() {
+  const box = document.getElementById('qiConfigContent');
+  if (!box) return;
+  if (!canEditQiMaster()) { box.innerHTML = ''; return; }
+  const year = _qiCurYear();
+  const list = qiListMaster({ activeOnly: false });
+
+  let html = '';
+
+  // 운항편수
+  const f = qiLoadFlights(year) || { dom: _qiPad12(null), intl: _qiPad12(null) };
+  const cell = (kind, i, v) => '<td style="padding:2px;"><input type="number" class="apple-input" id="qiF_' + kind + '_' + i + '" '
+    + 'style="width:100%;min-width:64px;padding:6px 8px;font-size:13px;text-align:right;" value="' + (v === null ? '' : v) + '" oninput="qiMarkEditing()"></td>';
+  html += '<div class="apple-card p-4 mb-4">'
+    + '<div class="flex items-center justify-between mb-1">'
+    + '<div style="font-size:14px;font-weight:600;color:#303A3C;">' + year + '년 운항편수</div>'
+    + '<button class="pill-btn pill-btn-primary" style="font-size:13px;padding:6px 16px;" onclick="qiSaveFlightsFromInputs()">저장</button>'
+    + '</div>'
+    + '<div style="font-size:12px;color:#9EA2A1;margin-bottom:10px;">발생률 분모로 쓰입니다. 분모 = (국내 + 국제) ÷ 2. 빈 칸은 미입력으로 처리되어 집계에서 빠집니다.</div>'
+    + '<div style="overflow-x:auto;"><table style="width:100%;min-width:860px;border-collapse:collapse;"><thead><tr>'
+    + '<th style="padding:4px;font-size:11px;color:#6E7273;text-align:left;width:60px;"></th>'
+    + Array.from({ length: 12 }, (_, i) => '<th style="padding:4px;font-size:11px;color:#6E7273;">' + (i + 1) + '월</th>').join('')
+    + '</tr></thead><tbody>'
+    + '<tr><td style="font-size:12px;color:#6E7273;font-weight:600;">국내</td>' + f.dom.map((v, i) => cell('dom', i, v)).join('') + '</tr>'
+    + '<tr><td style="font-size:12px;color:#6E7273;font-weight:600;">국제</td>' + f.intl.map((v, i) => cell('intl', i, v)).join('') + '</tr>'
+    + '</tbody></table></div>'
+    + (f.updatedAt ? '<div style="font-size:11px;color:#9EA2A1;margin-top:8px;">최종 수정 ' + _esc(String(f.updatedAt).slice(0, 10)) + ' · ' + _esc(f.updatedBy || '') + '</div>' : '')
+    + '</div>';
+
+  // 지표 마스터
+  html += '<div class="apple-card p-4">'
+    + '<div class="flex items-center justify-between mb-3">'
+    + '<div style="font-size:14px;font-weight:600;color:#303A3C;">지표 마스터 <span style="font-weight:400;color:#9EA2A1;">(' + list.length + ')</span></div>'
+    + '<div class="flex gap-2">'
+    + (list.length === 0 ? '<button class="pill-btn pill-btn-outline" style="font-size:13px;padding:6px 14px;" onclick="qiSeedMasterUI()">기본 지표 5개 불러오기</button>' : '')
+    + '<button class="pill-btn pill-btn-primary" style="font-size:13px;padding:6px 16px;" onclick="qiEditMaster(\'\')">+ 지표 추가</button>'
+    + '</div></div>';
+
+  if (_qiState.editingId !== null) {
+    html += _qiMasterForm(_qiState.editingId ? qiGetMaster(_qiState.editingId) : null);
+  }
+
+  if (!list.length) {
+    html += '<div class="p-6 text-center" style="font-size:13px;color:#9EA2A1;">등록된 지표가 없습니다.</div>';
+  } else {
+    html += '<div class="space-y-2">' + list.map(m => {
+      const dim = m.active ? '' : 'opacity:0.5;';
+      return '<div class="apple-card p-3" style="background:#F4F6F8;' + dim + '">'
+        + '<div class="flex items-start justify-between gap-2">'
+        + '<div style="min-width:0;">'
+        + '<div style="font-size:14px;font-weight:600;color:#303A3C;">' + _esc(m.name)
+        + (m.active ? '' : ' <span style="font-size:11px;color:#9EA2A1;">(비활성)</span>')
+        + (m.monitoringOnly ? ' <span style="font-size:11px;color:#9EA2A1;">(모니터링)</span>' : '') + '</div>'
+        + '<div style="font-size:12px;color:#6E7273;margin-top:2px;">'
+        + '목표 ' + _qiFmt(m.target) + ' · ' + (m.direction === QI_DIRECTIONS.HIGHER ? '많을수록 좋음' : '적을수록 좋음')
+        + (m.category ? ' · ' + _esc(m.category) : '') + (m.group ? ' · ' + _esc(m.group) : '')
+        + '</div></div>'
+        + '<div class="flex gap-1 flex-shrink-0">'
+        + '<button class="touch-text-btn" onclick="qiEditMaster(\'' + _esc(m.id) + '\')" style="background:none;border:none;color:#6E7273;font-size:12px;cursor:pointer;padding:6px 8px;">수정</button>'
+        + '<button class="touch-text-btn" onclick="qiToggleMasterActive(\'' + _esc(m.id) + '\')" style="background:none;border:none;color:#6E7273;font-size:12px;cursor:pointer;padding:6px 8px;">' + (m.active ? '비활성' : '활성') + '</button>'
+        + '<button class="touch-text-btn" onclick="qiRemoveMasterUI(\'' + _esc(m.id) + '\')" style="background:none;border:none;color:#D20015;font-size:12px;cursor:pointer;padding:6px 8px;">삭제</button>'
+        + '</div></div></div>';
+    }).join('') + '</div>';
+  }
+  html += '</div>';
+  box.innerHTML = html;
+}
+
+function _qiMasterForm(m) {
+  const v = m || {};
+  const chk = (id, arr, val, label) => '<label style="display:inline-flex;align-items:center;gap:4px;margin:0 10px 6px 0;font-size:13px;cursor:pointer;">'
+    + '<input type="checkbox" id="' + id + '" value="' + _esc(val) + '"' + ((arr || []).indexOf(val) >= 0 ? ' checked' : '') + ' style="width:16px;height:16px;"> ' + _esc(label) + '</label>';
+  const row = (label, inner) => '<div class="mb-3"><label class="apple-label block mb-1">' + label + '</label>' + inner + '</div>';
+
+  return '<div class="apple-card p-4 mb-4" style="border:1px solid #D20015;">'
+    + '<div style="font-size:14px;font-weight:600;color:#303A3C;margin-bottom:12px;">' + (m ? '지표 수정' : '지표 추가') + '</div>'
+    + row('① 지표명 <span style="color:#D20015;">*</span>', '<input type="text" id="qiMName" class="apple-input" style="width:100%;" value="' + _esc(v.name || '') + '" oninput="qiMarkEditing()">')
+    + row('② 정의', '<textarea id="qiMDef" class="apple-input" style="width:100%;min-height:70px;resize:vertical;" oninput="qiMarkEditing()">' + _esc(v.definition || '') + '</textarea>')
+    + row('③ 관련 부문', '<div>' + QI_DEPTS.map((d, i) => chk('qiMDept_' + i, v.depts, d, d)).join('') + '</div>')
+    + row('④ IOSA 섹션', '<div>' + QI_IOSA.map((d, i) => chk('qiMIosa_' + i, v.iosa, d, d)).join('') + '</div>')
+    + row('⑤ 데이터 출처', '<div>' + QI_SOURCES.map((d, i) => chk('qiMSrc_' + i, v.dataSource, d, d)).join('') + '</div>')
+    + row('⑥ 산출산식', '<input type="text" id="qiMFormula" class="apple-input" style="width:100%;" value="' + _esc(v.formula || QI_DEFAULT_FORMULA) + '" oninput="qiMarkEditing()">')
+    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
+    + row('⑦ 목표치 (건/만편)', '<input type="number" step="0.001" id="qiMTarget" class="apple-input" style="width:100%;" value="' + (v.target === null || v.target === undefined ? '' : v.target) + '" oninput="qiMarkEditing()">')
+    + row('목표 산정 기준', '<input type="text" id="qiMBasis" class="apple-input" style="width:100%;" placeholder="예: 3개년 평균" value="' + _esc(v.targetBasis || '') + '" oninput="qiMarkEditing()">')
+    + row('목표 방향', '<select id="qiMDirection" class="apple-input" style="width:100%;">'
+        + '<option value="lower"' + (v.direction === QI_DIRECTIONS.HIGHER ? '' : ' selected') + '>적을수록 좋음 (목표치 이하 유지)</option>'
+        + '<option value="higher"' + (v.direction === QI_DIRECTIONS.HIGHER ? ' selected' : '') + '>많을수록 좋음 (목표치 이상 발굴)</option></select>')
+    + '</div>'
+    + '<div class="mb-3"><label class="apple-label block mb-1">⑧ 경보기준</label>'
+    + '<select id="qiMAlertMode" class="apple-input" style="width:100%;margin-bottom:8px;" onchange="qiToggleAlertManual()">'
+    + '<option value="sigma"' + ((v.alert && v.alert.mode === 'manual') ? '' : ' selected') + '>자동 (3년 가중평균 ± nσ)</option>'
+    + '<option value="manual"' + ((v.alert && v.alert.mode === 'manual') ? ' selected' : '') + '>직접 입력</option></select>'
+    + '<div id="qiMAlertManual" class="grid grid-cols-3 gap-2"' + ((v.alert && v.alert.mode === 'manual') ? '' : ' style="display:none;"') + '>'
+    + '<input type="number" step="0.001" id="qiMAlertC" class="apple-input" placeholder="주의" value="' + ((v.alert && v.alert.caution !== null && v.alert.caution !== undefined) ? v.alert.caution : '') + '">'
+    + '<input type="number" step="0.001" id="qiMAlertW" class="apple-input" placeholder="경계" value="' + ((v.alert && v.alert.warning !== null && v.alert.warning !== undefined) ? v.alert.warning : '') + '">'
+    + '<input type="number" step="0.001" id="qiMAlertX" class="apple-input" placeholder="심각" value="' + ((v.alert && v.alert.critical !== null && v.alert.critical !== undefined) ? v.alert.critical : '') + '">'
+    + '</div></div>'
+    + row('⑨ 비고', '<input type="text" id="qiMNote" class="apple-input" style="width:100%;" value="' + _esc(v.note || '') + '" oninput="qiMarkEditing()">')
+    + '<div class="grid grid-cols-1 md:grid-cols-3 gap-3">'
+    + row('지표구분', '<input type="text" id="qiMCategory" class="apple-input" style="width:100%;" placeholder="예: 안전기획팀 KPI" value="' + _esc(v.category || '') + '" oninput="qiMarkEditing()">')
+    + row('그룹 (표 묶음)', '<input type="text" id="qiMGroup" class="apple-input" style="width:100%;" value="' + _esc(v.group || '') + '" oninput="qiMarkEditing()">')
+    + row('표시 순서', '<input type="number" id="qiMOrder" class="apple-input" style="width:100%;" value="' + (v.order || 0) + '" oninput="qiMarkEditing()">')
+    + '</div>'
+    + '<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;margin-bottom:12px;">'
+    + '<input type="checkbox" id="qiMMonitoring"' + (v.monitoringOnly ? ' checked' : '') + ' style="width:16px;height:16px;"> 모니터링 지표 (합계에서 제외)</label>'
+    + '<div class="flex gap-2 justify-end">'
+    + '<button class="pill-btn pill-btn-outline" onclick="qiCancelMasterEdit()">취소</button>'
+    + '<button class="pill-btn pill-btn-primary" onclick="qiSaveMasterFromForm()">저장</button>'
+    + '</div></div>';
+}
+
+function qiMarkEditing() { _qiEditing = true; }
+function qiToggleAlertManual() {
+  const sel = document.getElementById('qiMAlertMode');
+  const box = document.getElementById('qiMAlertManual');
+  if (sel && box) box.style.display = (sel.value === 'manual') ? '' : 'none';
+}
+function qiEditMaster(indId) {
+  if (!canEditQiMaster()) { showToast('권한이 없습니다. (admin 이상 필요)', 'error'); return; }
+  _qiState.editingId = indId || '';
+  _qiEditing = true;
+  qiRenderConfig();
+}
+function qiCancelMasterEdit() { _qiState.editingId = null; _qiEditing = false; qiRenderConfig(); }
+
+function _qiCheckedValues(prefix, source) {
+  const out = [];
+  source.forEach((v, i) => {
+    const el = document.getElementById(prefix + i);
+    if (el && el.checked) out.push(el.value);
+  });
+  return out;
+}
+
+function qiSaveMasterFromForm() {
+  if (!canEditQiMaster()) { showToast('권한이 없습니다. (admin 이상 필요)', 'error'); return; }
+  const name = ((document.getElementById('qiMName') || {}).value || '').trim();
+  if (!name) { showToast('지표명을 입력하세요.', 'error'); const el = document.getElementById('qiMName'); if (el) el.focus(); return; }
+  const existing = _qiState.editingId ? qiGetMaster(_qiState.editingId) : null;
+  const mode = (document.getElementById('qiMAlertMode') || {}).value === 'manual' ? 'manual' : 'sigma';
+  const ind = Object.assign({}, existing || {}, {
+    id: (existing && existing.id) || makeQiId(),
+    name: name,
+    definition: (document.getElementById('qiMDef') || {}).value || '',
+    depts: _qiCheckedValues('qiMDept_', QI_DEPTS),
+    iosa: _qiCheckedValues('qiMIosa_', QI_IOSA),
+    dataSource: _qiCheckedValues('qiMSrc_', QI_SOURCES),
+    formula: (document.getElementById('qiMFormula') || {}).value || QI_DEFAULT_FORMULA,
+    target: _qiNum((document.getElementById('qiMTarget') || {}).value),
+    targetBasis: (document.getElementById('qiMBasis') || {}).value || '',
+    direction: (document.getElementById('qiMDirection') || {}).value === 'higher' ? QI_DIRECTIONS.HIGHER : QI_DIRECTIONS.LOWER,
+    alert: { mode: mode,
+      caution: mode === 'manual' ? _qiNum((document.getElementById('qiMAlertC') || {}).value) : null,
+      warning: mode === 'manual' ? _qiNum((document.getElementById('qiMAlertW') || {}).value) : null,
+      critical: mode === 'manual' ? _qiNum((document.getElementById('qiMAlertX') || {}).value) : null },
+    note: (document.getElementById('qiMNote') || {}).value || '',
+    category: (document.getElementById('qiMCategory') || {}).value || '',
+    group: (document.getElementById('qiMGroup') || {}).value || '',
+    order: _qiNum((document.getElementById('qiMOrder') || {}).value) || 0,
+    monitoringOnly: !!(document.getElementById('qiMMonitoring') || {}).checked,
+    active: existing ? existing.active : true,
+  });
+  qiSaveMaster(ind);
+  _qiState.editingId = null;
+  _qiEditing = false;
+  showToast(existing ? '지표를 수정했습니다.' : '지표를 추가했습니다.', 'success');
+  renderQiTab();
+}
+
+function qiToggleMasterActive(indId) {
+  if (!canEditQiMaster()) { showToast('권한이 없습니다. (admin 이상 필요)', 'error'); return; }
+  const m = qiGetMaster(indId);
+  if (!m) return;
+  qiDeactivateMaster(indId, !m.active);
+  showToast(m.active ? '비활성 처리했습니다.' : '활성 처리했습니다.', 'success');
+  renderQiTab();
+}
+
+// 하드 삭제는 연결된 발생기록이 없을 때만. 있으면 비활성(soft delete)으로 유도한다.
+function qiRemoveMasterUI(indId) {
+  if (!canEditQiMaster()) { showToast('권한이 없습니다. (admin 이상 필요)', 'error'); return; }
+  const m = qiGetMaster(indId);
+  if (!m) return;
+  let linked = 0;
+  Object.keys(qiLoadEventsAll()).forEach(y => {
+    qiLoadEvents(y).forEach(ev => { if (ev.indId === indId) linked++; });
+  });
+  if (linked > 0) {
+    showToast('발생 기록 ' + linked + '건이 연결돼 있어 삭제할 수 없습니다. 비활성 처리하세요.', 'warning');
+    return;
+  }
+  if (!confirm('「' + m.name + '」 지표를 완전히 삭제할까요?')) return;
+  qiRemoveMaster(indId);
+  if (_qiState.editingId === indId) _qiState.editingId = null;
+  showToast('삭제했습니다.', 'success');
+  renderQiTab();
+}
+
+function qiSeedMasterUI() {
+  if (qiSeedMaster()) { _qiEditing = false; renderQiTab(); }
+}
+
+function qiSaveFlightsFromInputs() {
+  if (!canEditQiMaster()) { showToast('권한이 없습니다. (admin 이상 필요)', 'error'); return; }
+  const year = _qiCurYear();
+  const pick = kind => Array.from({ length: 12 }, (_, i) => _qiNum((document.getElementById('qiF_' + kind + '_' + i) || {}).value));
+  qiSaveFlights(year, { dom: pick('dom'), intl: pick('intl') });
+  _qiEditing = false;
+  showToast(year + '년 운항편수를 저장했습니다.', 'success');
+  renderQiTab();
+}
+
+// ---- 정의서 모달 ----
+function qiOpenDefModal(indId) {
+  const ind = qiGetMaster(indId);
+  if (!ind) { showToast('지표를 찾을 수 없습니다.', 'error'); return; }
+  const year = _qiCurYear();
+  const ctx = qiBuildContext(year);
+  const r = qiRowModel(ind, year, ctx);
+
+  const title = document.getElementById('qiDefModalTitle');
+  if (title) title.textContent = ind.name + ' · ' + year + '년';
+
+  const list = (arr) => (arr && arr.length) ? arr.map(x => _esc(x)).join(', ') : '—';
+  const defRow = (label, value) =>
+    '<tr style="border-bottom:1px solid rgba(192,206,209,0.25);">'
+    + '<th style="padding:9px 12px;font-size:12px;font-weight:600;color:#6E7273;text-align:left;white-space:nowrap;width:170px;background:rgba(158,162,161,0.06);">' + label + '</th>'
+    + '<td style="padding:9px 12px;font-size:13px;color:#303A3C;white-space:pre-wrap;">' + value + '</td></tr>';
+
+  // 3개년 요약
+  const sumRow = (label, vals) => '<tr><th style="padding:6px 8px;font-size:12px;color:#6E7273;text-align:left;background:rgba(158,162,161,0.06);">' + label + '</th>'
+    + vals.map(v => '<td style="padding:6px 8px;font-size:13px;text-align:center;">' + v + '</td>').join('') + '</tr>';
+  const allYears = r.y3.concat([{ year: year, count: r.cur.count, flights: (ctx.flights[year] || {}).avg, rate: r.cur.rate }]);
+  const summary = '<div style="overflow-x:auto;"><table style="width:100%;min-width:420px;border-collapse:collapse;margin-bottom:10px;">'
+    + '<thead><tr><th style="padding:6px 8px;"></th>'
+    + allYears.map(s => '<th style="padding:6px 8px;font-size:12px;color:#6E7273;">' + s.year + '년' + (s.year === year ? ' (당해)' : '') + '</th>').join('')
+    + '</tr></thead><tbody>'
+    + sumRow('편수(평균)', allYears.map(s => _qiFmtInt(s.flights)))
+    + sumRow('발생건수', allYears.map(s => _qiFmtInt(s.count)))
+    + sumRow('발생률', allYears.map(s => _qiFmt(s.rate)))
+    + '</tbody></table></div>'
+    + '<div class="grid grid-cols-2 md:grid-cols-4 gap-2" style="margin-bottom:4px;">'
+    + [['3년 가중평균', _qiFmt(r.wavg.weightedRate)], ['목표치', _qiFmt(r.target.target)],
+       ['감축률', r.target.reductionRate === null ? '—' : _qiFmt(r.target.reductionRate, 1) + '%'], ['표준편차 σ', _qiFmt(r.sigma)]]
+      .map(([l, v]) => '<div style="background:rgba(158,162,161,0.08);border-radius:8px;padding:8px 10px;">'
+        + '<div style="font-size:11px;color:#6E7273;">' + l + '</div>'
+        + '<div style="font-size:16px;font-weight:600;color:#303A3C;">' + v + '</div></div>').join('')
+    + '</div>';
+
+  // 월별 셀
+  const monthGrid = '<div style="overflow-x:auto;"><table style="width:100%;min-width:640px;border-collapse:collapse;">'
+    + '<thead><tr>' + Array.from({ length: 12 }, (_, i) => '<th style="padding:4px;font-size:11px;color:#6E7273;">' + (i + 1) + '월</th>').join('') + '</tr></thead>'
+    + '<tbody><tr>' + r.cur.byMonth.map((c, i) => {
+        const fm = ctx.flightsMonth[year] ? ctx.flightsMonth[year][i] : null;
+        const future = (i + 1) > (ctx.upToMonth || 12);
+        return '<td style="padding:6px 4px;text-align:center;font-size:13px;' + (future ? 'color:#C0CED1;' : '') + '">'
+          + (future ? '·' : (fm ? c : (c ? c : '—'))) + '</td>';
+      }).join('') + '</tr></tbody></table></div>';
+
+  const alertDesc = r.thresholds.mode === 'manual'
+    ? '직접 입력값 사용'
+    : (ind.direction === QI_DIRECTIONS.HIGHER
+        ? '가중평균 대비 1σ 3개월 연속 미달(주의) · 2σ 2개월 연속 미달(경계) · 3σ 미달(심각)'
+        : '가중평균 대비 1σ 3개월 연속 초과(주의) · 2σ 2개월 연속 초과(경계) · 3σ 초과(심각)');
+  const alertTable = '<table style="width:100%;border-collapse:collapse;">'
+    + ['caution', 'warning', 'critical'].map(k => {
+        const meta = QI_ALERT_META[k];
+        return '<tr><td style="padding:5px 10px;width:70px;background:' + meta.color + ';color:' + (meta.text || '#fff') + ';font-size:12px;font-weight:600;text-align:center;border-radius:4px;">' + meta.label + '</td>'
+          + '<td style="padding:5px 10px;font-size:13px;">' + _qiFmt(r.thresholds[k]) + '</td></tr>';
+      }).join('')
+    + '</table><div style="font-size:11px;color:#9EA2A1;margin-top:6px;">' + alertDesc + '</div>';
+
+  const body = document.getElementById('qiDefModalBody');
+  if (body) {
+    body.innerHTML =
+      '<div style="padding:16px 20px;">'
+      + '<div class="flex items-center gap-2 mb-3">' + _qiAlertBadge(r.alert.level, r.alert.complete)
+      + '<span style="font-size:13px;color:#6E7273;">' + _esc(r.alert.reason) + '</span></div>'
+      + '<div style="position:relative;height:300px;margin-bottom:16px;"><canvas id="qiTrendChart"></canvas></div>'
+      + '<div style="font-size:13px;font-weight:600;color:#303A3C;margin-bottom:6px;">발생현황</div>' + summary
+      + '<div style="font-size:13px;font-weight:600;color:#303A3C;margin:14px 0 6px;">월별 발생건수</div>' + monthGrid
+      + '<div style="font-size:13px;font-weight:600;color:#303A3C;margin:16px 0 6px;">지표 정의</div>'
+      + '<table style="width:100%;border-collapse:collapse;border:1px solid rgba(192,206,209,0.4);border-radius:8px;overflow:hidden;">'
+      + defRow('① 지표명', _esc(ind.name))
+      + defRow('② 정의', ind.definition ? _esc(ind.definition) : '<span style="color:#9EA2A1;">미작성</span>')
+      + defRow('③ 관련 부문', list(ind.depts))
+      + defRow('④ IOSA 섹션', list(ind.iosa))
+      + defRow('⑤ 데이터 출처', list(ind.dataSource))
+      + defRow('⑥ 산출산식', _esc(ind.formula || QI_DEFAULT_FORMULA))
+      + defRow('⑦ 목표치', _qiFmt(ind.target) + ' 건/만편'
+          + (ind.targetBasis ? ' <span style="color:#9EA2A1;font-size:12px;">(' + _esc(ind.targetBasis) + ')</span>' : '')
+          + '<br><span style="font-size:12px;color:#6E7273;">' + (ind.direction === QI_DIRECTIONS.HIGHER ? '많을수록 좋음' : '적을수록 좋음') + '</span>')
+      + defRow('⑧ 경보기준', alertTable)
+      + defRow('⑨ 비고', ind.note ? _esc(ind.note) : '<span style="color:#9EA2A1;">—</span>')
+      + '</table></div>';
+  }
+
+  const overlay = document.getElementById('qiDefModalOverlay');
+  if (overlay) overlay.classList.add('active');
+  setTimeout(() => { try { _qiRenderTrendChart(r, ctx, year); } catch (e) { console.warn('qi trend chart failed:', e); } }, 30);
+}
+
+function qiCloseDefModal() {
+  const overlay = document.getElementById('qiDefModalOverlay');
+  if (overlay) overlay.classList.remove('active');
+}
+
+function _qiRenderTrendChart(r, ctx, year) {
+  const cv = document.getElementById('qiTrendChart');
+  if (!cv || typeof Chart === 'undefined') return;
+  const labels = Array.from({ length: 12 }, (_, i) => (i + 1) + '월');
+  const last = ctx.upToMonth || 12;
+  const counts = r.cur.byMonth.map((c, i) => (i + 1) <= last ? c : null);
+  const line = v => (v === null || v === undefined) ? null : v;
+  const th = r.thresholds;
+  const ds = [{
+    type: 'bar', label: '발생건수', data: counts, yAxisID: 'y',
+    backgroundColor: 'rgba(210,0,21,0.5)', borderColor: '#D20015', borderWidth: 1, order: 3,
+  }];
+  const rates = r.cur.byMonth.map((c, i) => {
+    if ((i + 1) > last) return null;
+    const fm = ctx.flightsMonth[year] ? ctx.flightsMonth[year][i] : null;
+    return fm ? qiRate(c, fm.avg) : null;
+  });
+  const hasRate = rates.some(v => v !== null);
+  if (hasRate) {
+    ds.push({ type: 'line', label: '발생률', data: rates, yAxisID: 'y1',
+      borderColor: '#3B82F6', backgroundColor: '#3B82F6', borderWidth: 2, pointRadius: 3, tension: 0.2, spanGaps: true, order: 1 });
+    [['주의', th.caution, '#FFD200'], ['경계', th.warning, '#F7941E'], ['심각', th.critical, '#EE3124']].forEach(([lbl, val, col]) => {
+      if (val === null || val === undefined || !isFinite(val)) return;
+      ds.push({ type: 'line', label: lbl, data: labels.map(() => line(val)), yAxisID: 'y1',
+        borderColor: col, borderWidth: 1.5, borderDash: [5, 5], pointRadius: 0, fill: false, order: 2 });
+    });
+  }
+  const opts = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+      datalabels: { display: false },
+    },
+    scales: {
+      y: { beginAtZero: true, title: { display: true, text: '건수', font: { size: 11 } }, ticks: { precision: 0 } },
+    },
+  };
+  if (hasRate) opts.scales.y1 = { position: 'right', beginAtZero: true, grid: { drawOnChartArea: false }, title: { display: true, text: '건/만편', font: { size: 11 } } };
+  if (typeof ChartUtil !== 'undefined' && ChartUtil.create) ChartUtil.create('qiTrendChart', { type: 'bar', data: { labels: labels, datasets: ds }, options: opts });
+  else new Chart(cv.getContext('2d'), { type: 'bar', data: { labels: labels, datasets: ds }, options: opts });
+}
+
+// =============================================================================
 // v19.11.0: 심사 메모(Audit Memo) — public 메모 / private 메모 / private 체크리스트
 // =============================================================================
 // 데이터 모델:
@@ -19595,6 +20974,20 @@ Object.assign(window, {
   onMemoDraftToggleEmoji, onMemoDraftSetEmoji,
   copyMemoToClipboard, onMemoBulkMenu, bulkChecklistAction,
   MEMO_EMOJIS, MEMO_ITEM_KINDS,
+  // v19.48.0: 품질자체지표 — inline onclick/onchange/oninput 대상은 반드시 여기 등록해야 한다.
+  // (전체가 IIFE라 노출을 빠뜨리면 버튼이 조용히 무동작 — v19.40.5 실사고)
+  renderQiTab, qiOnFilterChange, qiSwitchSubTab,
+  qiOpenDefModal, qiCloseDefModal,
+  qiAddEvent, qiEditEvent, qiCancelEventEdit, qiDeleteEventUI,
+  qiEditMaster, qiCancelMasterEdit, qiSaveMasterFromForm, qiToggleMasterActive, qiRemoveMasterUI,
+  qiSeedMaster, qiSeedMasterUI, qiSaveFlightsFromInputs, qiToggleAlertManual, qiMarkEditing,
+  // 데이터·집계 (콘솔 점검·검증용)
+  qiLoadMaster, qiListMaster, qiGetMaster, qiSaveMaster, qiLoadEvents, qiLoadEventsAll, qiSaveEvent, qiDeleteEvent,
+  qiLoadFlights, qiLoadFlightsAll, qiSaveFlights, qiLoadAllFromFirebase,
+  qiCounts, qiBuildContext, qiRowModel, qiSummary, qiEvaluateAlert, qiAlertThresholds, qiWeightedAvg,
+  qiFlightsTotal, qiFlightsMonth, qiRate, qiSeries, qiStdev, qiTargetInfo, qiAchieved,
+  canEditQiMaster, canEditQiEvent,
+  QI_DEPTS, QI_IOSA, QI_SOURCES, QI_SEED_2026, QI_ALERT_META,
 });
 // v19.11.0: state도 노출 (oninput에서 직접 mutate)
 window.memoWorkspaceState = (typeof memoWorkspaceState !== 'undefined') ? memoWorkspaceState : null;
@@ -19615,6 +21008,18 @@ window._sdMemoExpanded = (typeof _sdMemoExpanded !== 'undefined') ? _sdMemoExpan
       <button onclick="closeAnalysisModal()" style="background:none;border:none;font-size:24px;color:#9EA2A1;cursor:pointer;padding:0 4px;">&times;</button>
     </div>
     <div class="analysis-modal-body" id="analysisModalBody"></div>
+  </div>
+</div>
+
+<!-- v19.48.0: 품질자체지표 정의서 모달 — analysisModalOverlay를 재사용하지 않는다.
+     분석 탭이 그 body를 innerHTML로 통째 교체하기 때문에 충돌한다. 클래스만 공유. -->
+<div id="qiDefModalOverlay" class="analysis-modal-overlay" onclick="if(event.target===this)qiCloseDefModal()">
+  <div class="analysis-modal" style="max-width:1000px;">
+    <div class="analysis-modal-header">
+      <h3 id="qiDefModalTitle" style="font-size:17px;font-weight:600;color:#303A3C;"></h3>
+      <button onclick="qiCloseDefModal()" style="background:none;border:none;font-size:24px;color:#9EA2A1;cursor:pointer;padding:0 4px;">&times;</button>
+    </div>
+    <div class="analysis-modal-body" id="qiDefModalBody"></div>
   </div>
 </div>
 
