@@ -1642,7 +1642,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.48.1</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.49.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1825,7 +1825,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.48.1',
+  version: '19.49.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -17034,6 +17034,28 @@ function qiWeightedAvg(indId, endYear, ctx, span) {
   };
 }
 
+// 3개년 단순평균 — 연도별 발생률을 그대로 평균한다.
+// 사내 품질자체지표 KPI 산출표가 이 방식이다(예: 매뉴얼 (1.754+1.497+1.786)/3 = 1.679).
+// 편수 가중 pooled(qiWeightedAvg)와 값이 다르므로 화면 표시는 이쪽을 쓴다.
+// 목표치는 이 값의 5% 감축(× 0.95)으로 산정된다.
+function qiSimpleAvg(indId, endYear, ctx, span) {
+  const sp = span || (ctx && ctx.span) || QI_SPAN;
+  const years = [];
+  for (let i = sp; i >= 1; i--) years.push(endYear - i);
+  const rates = years.map(y => {
+    const f = ctx.flights[y];
+    return f ? qiRate(_qiCtxCount(ctx, indId, y).total, f.avg) : null;
+  });
+  const valid = rates.filter(r => r !== null);
+  return {
+    years: years, rates: rates,
+    avg: valid.length ? (valid.reduce((s, r) => s + r, 0) / valid.length) : null,
+    complete: valid.length === years.length,
+    suggestedTarget: valid.length === years.length
+      ? (valid.reduce((s, r) => s + r, 0) / valid.length) * 0.95 : null,
+  };
+}
+
 // 표준편차 계산 계열 — 직전 span년의 월별 발생률(기본 36개월). 편수 미입력 월은 null.
 function qiSigmaSeries(indId, endYear, ctx, span) {
   const sp = span || (ctx && ctx.span) || QI_SPAN;
@@ -17061,16 +17083,17 @@ function qiStdev(values) {
 // alert.mode==='manual'이면 σ를 무시하고 마스터 입력값을 그대로 쓴다(표본 없는 신규 지표 대비).
 function qiAlertThresholds(ind, year, ctx) {
   const indId = ind.id;
-  const wa = qiWeightedAvg(indId, year, ctx);
+  // 기준선은 3개년 단순평균 — KPI 산출표와 같은 기준을 쓴다
+  const sa = qiSimpleAvg(indId, year, ctx);
   const sigma = qiStdev(qiSigmaSeries(indId, year, ctx));
   const higher = (ind.direction === QI_DIRECTIONS.HIGHER);
   if (ind.alert && ind.alert.mode === 'manual') {
     const has = (ind.alert.caution !== null || ind.alert.warning !== null || ind.alert.critical !== null);
-    return { mu: wa.weightedRate, sigma: sigma, mode: 'manual',
+    return { mu: sa.avg, sigma: sigma, mode: 'manual',
              caution: ind.alert.caution, warning: ind.alert.warning, critical: ind.alert.critical,
              complete: has };
   }
-  const mu = wa.weightedRate;
+  const mu = sa.avg;
   if (mu === null || sigma === null) {
     return { mu: mu, sigma: sigma, mode: 'sigma', caution: null, warning: null, critical: null, complete: false };
   }
@@ -17108,14 +17131,14 @@ function qiEvaluateAlert(ind, year, ctx) {
   return { level: 'none', reason: '정상', thresholds: th, complete: true };
 }
 
-// 목표 대비 — 감축률은 3년 가중평균 대비 목표치의 감축 폭
+// 목표 대비 — 기준은 3개년 단순평균. 감축률 = (평균 - 목표) / 평균 × 100 (KPI 산출표는 5%)
 function qiTargetInfo(ind, year, ctx) {
-  const wa = qiWeightedAvg(ind.id, year, ctx);
-  const base = wa.weightedRate;
+  const sa = qiSimpleAvg(ind.id, year, ctx);
+  const base = sa.avg;
   const t = _qiNum(ind.target);
   let reduction = null;
   if (t !== null && base !== null && base !== 0) reduction = (base - t) / base * 100;
-  return { target: t, base: base, reductionRate: reduction };
+  return { target: t, base: base, reductionRate: reduction, suggestedTarget: sa.suggestedTarget };
 }
 
 // 목표 달성 여부 — direction이 판정을 뒤집는다.
@@ -17135,13 +17158,14 @@ function qiRowModel(ind, year, ctx) {
   const cur = _qiCtxCount(ctx, ind.id, year);
   const curF = ctx.flights[year];
   const wa = qiWeightedAvg(ind.id, year, ctx);
+  const sa = qiSimpleAvg(ind.id, year, ctx);
   const alert = qiEvaluateAlert(ind, year, ctx);
   const ti = qiTargetInfo(ind, year, ctx);
   return {
     ind: ind, y3: y3,
     sum3: y3.reduce((s, r) => s + r.count, 0),
     cur: { count: cur.total, rate: qiRate(cur.total, curF ? curF.avg : null), byMonth: cur.byMonth },
-    wavg: wa, target: ti, sigma: alert.thresholds.sigma,
+    wavg: wa, savg: sa, target: ti, sigma: alert.thresholds.sigma,
     thresholds: alert.thresholds, alert: alert,
     achieved: qiAchieved(ind, year, ctx),
   };
@@ -17353,7 +17377,7 @@ function _qiStatusTable(rows, year, ctx) {
     + th('지표명') + th('지표구분')
     + prevYears.map(y => th(String(y).slice(2) + '년')).join('')
     + th('최근3년') + th('당해 건수') + th('당해 발생률')
-    + th('3년 평균건수') + th('3년 가중평균') + th('목표치') + th('감축률') + th('σ')
+    + th('3개년 평균') + th('목표치') + th('감축률') + th('σ')
     + th('주의') + th('경계') + th('심각') + th('상태')
     + '</tr>';
 
@@ -17372,12 +17396,14 @@ function _qiStatusTable(rows, year, ctx) {
       + '<td style="padding:8px 6px;font-size:13px;"><a href="javascript:void(0)" onclick="qiOpenDefModal(\'' + _esc(r.ind.id) + '\')" style="color:#D20015;text-decoration:none;font-weight:500;">' + _esc(r.ind.name) + '</a>'
       + (r.ind.monitoringOnly ? ' <span style="font-size:11px;color:#9EA2A1;">(모니터링)</span>' : '') + '</td>'
       + td(_esc(r.ind.category || '—'), 'color:#6E7273;font-size:12px;')
-      + r.y3.map(s => td(_qiFmtInt(s.count))).join('')
-      + td('<b>' + _qiFmtInt(r.sum3) + '</b>')
+      // 연도 셀 — 발생률을 위에, 건수를 아래에 (KPI 산출표가 발생률 기준)
+      + r.y3.map(s => td(
+          '<div style="font-weight:600;color:' + (s.rate === null ? '#9EA2A1' : '#3B82F6') + ';">' + _qiFmt(s.rate) + '</div>'
+          + '<div style="font-size:11px;color:#9EA2A1;margin-top:1px;">' + _qiFmtInt(s.count) + '건</div>')).join('')
+      + td('<b>' + _qiFmtInt(r.sum3) + '</b>건')
       + td('<b style="color:#D20015;">' + _qiFmtInt(r.cur.count) + '</b>')
       + td('<b style="color:#D20015;">' + _qiFmt(r.cur.rate) + '</b>')
-      + td(_qiFmt(r.wavg.avgCount, 1), 'color:#3B82F6;')
-      + td(_qiFmt(r.wavg.weightedRate), 'color:#3B82F6;')
+      + td('<b>' + _qiFmt(r.savg.avg) + '</b>', 'color:#3B82F6;')
       + td(_qiFmt(t.target))
       + td(t.reductionRate === null ? '—' : _qiFmt(t.reductionRate, 1) + '%')
       + td(_qiFmt(r.sigma))
@@ -17390,25 +17416,28 @@ function _qiStatusTable(rows, year, ctx) {
 
   const subtotal = (label, list) => {
     if (!list.length) return '';
-    let rs = null, ts = null;
+    let rs = null, ts = null, sa = null;
     list.forEach(r => {
       if (r.cur.rate !== null) rs = (rs === null ? 0 : rs) + r.cur.rate;
       if (r.target.target !== null) ts = (ts === null ? 0 : ts) + r.target.target;
+      if (r.savg.avg !== null) sa = (sa === null ? 0 : sa) + r.savg.avg;
     });
     const span = 2 + prevYears.length;
     return '<tr style="background:rgba(158,162,161,0.08);border-bottom:1px solid rgba(192,206,209,0.35);">'
       + '<td colspan="' + span + '" style="padding:8px 6px;font-size:12px;font-weight:600;color:#6E7273;text-align:right;">' + _esc(label) + '</td>'
-      + td('<b>' + _qiFmtInt(list.reduce((s, r) => s + r.sum3, 0)) + '</b>')
+      + td('<b>' + _qiFmtInt(list.reduce((s, r) => s + r.sum3, 0)) + '</b>건')
       + td('<b>' + _qiFmtInt(list.reduce((s, r) => s + r.cur.count, 0)) + '</b>')
       + td('<b>' + _qiFmt(rs) + '</b>')
-      + td('') + td('') + td('<b>' + _qiFmt(ts) + '</b>') + td('') + td('') + td('') + td('') + td('') + td('')
+      + td('<b>' + _qiFmt(sa) + '</b>')
+      + td('<b>' + _qiFmt(ts) + '</b>')
+      + td('') + td('') + td('') + td('') + td('') + td('')
       + '</tr>';
   };
 
   let body = '';
   groups.forEach(g => {
     if (g.name) {
-      body += '<tr><td colspan="' + (15 + prevYears.length) + '" style="padding:10px 6px 4px;"><div class="cat-header" style="font-size:13px;font-weight:600;color:#303A3C;">' + _esc(g.name) + '</div></td></tr>';
+      body += '<tr><td colspan="' + (13 + prevYears.length) + '" style="padding:10px 6px 4px;"><div class="cat-header" style="font-size:13px;font-weight:600;color:#303A3C;">' + _esc(g.name) + '</div></td></tr>';
     }
     body += g.rows.map(rowHtml).join('');
     if (groups.length > 1) body += subtotal('소계', g.rows);
@@ -17420,7 +17449,7 @@ function _qiStatusTable(rows, year, ctx) {
     + '<thead>' + head + '</thead><tbody>' + body + '</tbody></table>'
     + '<div style="font-size:11px;color:#9EA2A1;margin-top:10px;line-height:1.6;">'
     + '· 발생률 단위는 건/만편 (발생건수 ÷ ((국내편수 + 국제편수) ÷ 2) × 10,000)<br>'
-    + '· 3년 가중평균은 연도별 발생률의 단순평균이 아니라 편수로 가중한 값입니다<br>'
+    + '· 3개년 평균은 직전 3년 발생률의 단순평균입니다. 목표치는 통상 이 값의 5% 감축(× 0.95)으로 산정합니다<br>'
     + '· 경보치는 가중평균 ± nσ. 주의=1σ 3개월 연속 · 경계=2σ 2개월 연속 · 심각=3σ 초과. 편수 미입력 월은 연속 판정에서 끊깁니다<br>'
     + '· 3개년 데이터가 쌓이기 전에는 가중평균·σ·경보치가 산출되지 않아 &ldquo;—&rdquo;로 표시됩니다'
     + '</div></div>';
@@ -17650,7 +17679,7 @@ function _qiMasterForm(m) {
     + '</div>'
     + '<div class="mb-3"><label class="apple-label block mb-1">⑧ 경보기준</label>'
     + '<select id="qiMAlertMode" class="apple-input" style="width:100%;margin-bottom:8px;" onchange="qiToggleAlertManual()">'
-    + '<option value="sigma"' + ((v.alert && v.alert.mode === 'manual') ? '' : ' selected') + '>자동 (3년 가중평균 ± nσ)</option>'
+    + '<option value="sigma"' + ((v.alert && v.alert.mode === 'manual') ? '' : ' selected') + '>자동 (3개년 평균 ± nσ)</option>'
     + '<option value="manual"' + ((v.alert && v.alert.mode === 'manual') ? ' selected' : '') + '>직접 입력</option></select>'
     + '<div id="qiMAlertManual" class="grid grid-cols-3 gap-2"' + ((v.alert && v.alert.mode === 'manual') ? '' : ' style="display:none;"') + '>'
     + '<input type="number" step="0.001" id="qiMAlertC" class="apple-input" placeholder="주의" value="' + ((v.alert && v.alert.caution !== null && v.alert.caution !== undefined) ? v.alert.caution : '') + '">'
@@ -17802,7 +17831,7 @@ function qiOpenDefModal(indId) {
     + sumRow('발생률', allYears.map(s => _qiFmt(s.rate)))
     + '</tbody></table></div>'
     + '<div class="grid grid-cols-2 md:grid-cols-4 gap-2" style="margin-bottom:4px;">'
-    + [['3년 가중평균', _qiFmt(r.wavg.weightedRate)], ['목표치', _qiFmt(r.target.target)],
+    + [['3개년 평균', _qiFmt(r.savg.avg)], ['목표치', _qiFmt(r.target.target)],
        ['감축률', r.target.reductionRate === null ? '—' : _qiFmt(r.target.reductionRate, 1) + '%'], ['표준편차 σ', _qiFmt(r.sigma)]]
       .map(([l, v]) => '<div style="background:rgba(158,162,161,0.08);border-radius:8px;padding:8px 10px;">'
         + '<div style="font-size:11px;color:#6E7273;">' + l + '</div>'
@@ -17822,8 +17851,8 @@ function qiOpenDefModal(indId) {
   const alertDesc = r.thresholds.mode === 'manual'
     ? '직접 입력값 사용'
     : (ind.direction === QI_DIRECTIONS.HIGHER
-        ? '가중평균 대비 1σ 3개월 연속 미달(주의) · 2σ 2개월 연속 미달(경계) · 3σ 미달(심각)'
-        : '가중평균 대비 1σ 3개월 연속 초과(주의) · 2σ 2개월 연속 초과(경계) · 3σ 초과(심각)');
+        ? '3개년 평균 대비 1σ 3개월 연속 미달(주의) · 2σ 2개월 연속 미달(경계) · 3σ 미달(심각)'
+        : '3개년 평균 대비 1σ 3개월 연속 초과(주의) · 2σ 2개월 연속 초과(경계) · 3σ 초과(심각)');
   const alertTable = '<table style="width:100%;border-collapse:collapse;">'
     + ['caution', 'warning', 'critical'].map(k => {
         const meta = QI_ALERT_META[k];
