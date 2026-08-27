@@ -1642,7 +1642,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.49.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.50.0</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1689,8 +1689,6 @@ select.apple-input {
         <div class="sd-download-list">
           <button type="button" class="sd-download-item" onclick="downloadDetailPDF()">PDF로 저장 <span style="font-size:11px;color:#9EA2A1;">(시각 보고)</span></button>
           <button type="button" class="sd-download-item" onclick="openSdChecklistSheetPicker()">점검표 PDF <span style="font-size:11px;color:#9EA2A1;">(원본 양식)</span></button>
-          <button type="button" class="sd-download-item" onclick="downloadDetailHTML()">전자결재 양식(HTML) 저장</button>
-          <button type="button" class="sd-download-item" onclick="copyDetailHTMLToClipboard()">그룹웨어 양식 복사 <span style="font-size:11px;color:#9EA2A1;">(전자결재용)</span></button>
         </div>
       </div>
     </div>
@@ -1825,7 +1823,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.49.0',
+  version: '19.50.0',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
@@ -14477,18 +14475,12 @@ function openStationDetail(year, station, _fromPopstate) {
   if (mobileBar) mobileBar.style.display = 'none';
   window.scrollTo({ top: 0, behavior: 'smooth' });
   renderStationDetail(year, station);
-  try { injectReportDraftPanel(year, station); } catch(e) { console.warn('injectReportDraftPanel failed:', e); }
+  // v19.50.0: 전자결재 결과보고 작성 기능 제거 — injectReportDraftPanel 호출 삭제
   try { updateDetailLockUI(year, station); } catch(e) { console.warn('updateDetailLockUI failed:', e); } // v19.44.0
   // v19.31.2: CAR 편집 연필 버튼은 배정 심사원 + admin만 노출 (클릭 가드는 toggleCarEdit에 별도 존재)
   try {
     const _carEditable = canEditAssessment(year, station);
     document.querySelectorAll('#sdCarEditBtn').forEach(b => { b.style.display = _carEditable ? '' : 'none'; });
-  } catch(e) {}
-  // v19.37.0: 외주협력업체는 전자결재 양식(지점/실본부 전용) 다운로드 항목 숨김 — PDF만 노출
-  try {
-    const _isOut = isOutsourcingTarget(station);
-    document.querySelectorAll('#sdDownloadMenu .sd-download-item[onclick="downloadDetailHTML()"], #sdDownloadMenu .sd-download-item[onclick="copyDetailHTMLToClipboard()"]')
-      .forEach(b => { b.style.display = _isOut ? 'none' : ''; });
   } catch(e) {}
 }
 
