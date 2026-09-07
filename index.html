@@ -188,20 +188,22 @@ p, span, td, th, label, div {
   .checklist-item-row .item-score-area { flex-shrink: 0; }
   .score-btn { min-width: 40px; min-height: 40px; font-size: 15px; border-radius: 10px; }
 }
-/* v19.51.0: 점검 항목 메모 배지 — ID 배지 옆, 행 높이 불변(28px). 메모 없으면 opacity로만 숨겨 레이아웃 점프 없음 */
-.item-id-wrap { display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0; margin-top: 2px; }
+/* v19.51.0: 점검 항목 메모 배지 — ID 배지 옆, 행 높이 불변(28px, box-sizing border-box로 테두리 포함).
+   v19.51.1: 메모 없는 상태도 점선 pill로 상시 표시 — opacity 0 숨김은 사용자 피드백("눈에 안 띈다")으로 폐기 */
+.item-id-wrap { display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0; margin-top: 2px; }
 .item-memo-badge {
-  display: inline-flex; align-items: center; height: 28px; padding: 0 7px; border-radius: 8px;
-  background: rgba(0,103,196,0.10); color: #0067C4; font-size: 11px; font-weight: 700; line-height: 1;
-  cursor: pointer; user-select: none; white-space: nowrap; transition: opacity .15s, background .15s;
+  display: inline-flex; align-items: center; box-sizing: border-box; height: 28px; padding: 0 8px; border-radius: 8px;
+  border: 1px solid transparent;
+  background: rgba(0,103,196,0.12); color: #0067C4; font-size: 12px; font-weight: 700; line-height: 1;
+  cursor: pointer; user-select: none; white-space: nowrap; transition: opacity .15s, background .15s, border-color .15s;
 }
-.item-memo-badge:hover { background: rgba(0,103,196,0.18); }
-.item-memo-badge.prev { background: rgba(158,162,161,0.14); color: #6E7273; }
-.item-memo-badge.prev:hover { background: rgba(158,162,161,0.26); }
-.item-memo-badge.empty { opacity: 0; background: transparent; color: #9EA2A1; }
-.checklist-item-row:hover .item-memo-badge.empty { opacity: 0.5; }
-.item-memo-badge.empty:hover { opacity: 1; background: rgba(0,0,0,0.05); }
-@media (max-width: 768px) { .item-memo-badge.empty { opacity: 0.35; } }
+.item-memo-badge:hover { background: rgba(0,103,196,0.2); }
+.item-memo-badge.prev { background: rgba(158,162,161,0.16); color: #6E7273; }
+.item-memo-badge.prev:hover { background: rgba(158,162,161,0.28); }
+.item-memo-badge.empty { opacity: 0.7; background: #fff; color: #9EA2A1; border-color: rgba(158,162,161,0.7); border-style: dashed; font-size: 13px; }
+.checklist-item-row:hover .item-memo-badge.empty { opacity: 0.9; }
+.item-memo-badge.empty:hover { opacity: 1; background: rgba(0,103,196,0.08); border-color: rgba(0,103,196,0.55); }
+@media (max-width: 768px) { .item-memo-badge.empty { opacity: 0.8; } }
 /* Collapsible remark toggle */
 .remark-toggle {
   font-size: 12px; color: #6E7273; cursor: pointer; user-select: none;
@@ -1656,7 +1658,7 @@ select.apple-input {
       <div style="display:flex;flex-direction:column;gap:12px;font-size:14px;">
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">플랫폼 버전</span>
-          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.51.0</span>
+          <span style="font-weight:700;color:#1a1c1d;" id="sysVersion">v19.51.1</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;padding-bottom:10px;border-bottom:1px solid rgba(192,206,209,0.2);">
           <span style="color:#566062;">환경</span>
@@ -1837,7 +1839,7 @@ select.apple-input {
 // CONFIG
 // ============================================================================
 const CONFIG = {
-  version: '19.51.0',
+  version: '19.51.1',
   storage: {
     data: 'eastar_maturity_data',
     auditors: 'eastar_auditors',
